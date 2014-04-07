@@ -1,0 +1,25 @@
+<FIXML v="5.0 SP2" xv="109" s="20090815" cv="CME.0001">
+    <TrdCaptRpt RptID="20100622:373917:50014:1" ExecID2="123456789" TransTyp="0" RptTyp="0" QtyTyp="0" TrdTyp="22" TxnTm="2011-04-12T15:15:24.751-04:00" LastQty="5000000" PxNeg="1" VenuTyp="S" RegRptTyp="4">
+        <Hdr SID="RCPLT" SSub="rcafpl" TID="CME" TSub="CPAPI"/>
+        <RegTrdID ID="1342376676" Typ="0" Src="102RCAF_Namespace" Evnt="0"/>
+        <Pty Src="N" R="102" ID="CME SDR LEI"/>
+        <Pty Src="N" R="73" ID="LEI OF THE SEF"/>
+        <Instrmt MMY="201212" SecTyp="CDS" ID="CG13" Src="H" CpnRt="1.0" Exch="CMD"/>
+        <Yield Yld="0.92500"/>
+        <TrdRegTS Typ="1" TS="2011-04-12T15:15:24.751-04:00"/>
+        <RptSide Side="1" ClOrdID="XYZ123" InptSrc="RCPLT">
+            <Pty ID="RCACCT1A" R="24" Src="C"/>
+            <Pty ID="817" R="1"/>
+            <Pty ID="TRD_FIRMID" R="7"/>
+            <Pty ID="traderid" R="36"/>
+        </RptSide>
+        <RptSide Side="2" ClOrdID=" ABCXCF1" InptSrc="RCPLT">
+            <Pty ID="RCACCT2A" R="24" Src="C"/>
+            <Pty ID="817" R="1"/>
+            <Pty ID="RCAF_TRD2" R="7">
+                <Sub Typ="49" ID="Y"/>
+            </Pty>
+            <Pty ID="rcaf2" R="36"/>
+        </RptSide>
+    </TrdCaptRpt>
+</FIXML>

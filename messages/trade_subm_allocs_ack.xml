@@ -1,0 +1,69 @@
+<FIXML v="5.0 SP2" xv="109" s="20090815" cv="CME.0001">
+    <TrdCaptRptAck RptID="1302973726779" TransTyp="0" ExecID2="123456789" TrdTyp="22" LastQty="5000000" QtyTyp="0" TxnTm="2011-04-12T14:36:42.276-05:00" ExecID="1806613" TrdRptStat="101" RptRefID="20100622:373917:50014:1" RptTyp="0" PxNeg="1" VenuTyp="S" RegRptTyp="4" TrdAckStat="0" TrdDt="2011-04-12" BizDt="2011-04-12">
+        <Hdr SID="CME" SSub="CPAPI" TID="RCPLT" TSub="rcafpl"/>
+        <RegTrdID ID="1342376676" Typ="2" Src="102RCAF_Namespace" Evnt="1"/>
+        <Pty Src="N" R="102" ID="CME SDR LEI"/>
+        <Pty Src="N" R="73" ID="LEI OF THE SEF"/>
+        <Instrmt ID="CG13" Src="H" SecTyp="CDS" MMY="201212" Exch="CMD" CpnRt="1">
+            <AID AltIDSrc="104" AltID="2I65BYBX2"/>
+            <Evnt Dt="2011-04-16" EventTyp="8"/>
+            <Evnt Dt="2012-12-20" EventTyp="9"/>
+        </Instrmt>
+        <Yield Yld="0.925"/>
+        <Amt Typ="TVAR" Amt="6276.39"/>
+        <Amt Typ="ICPN" Amt="3611.11"/>
+        <Amt Typ="IPMT" Amt="9887.50"/>
+        <TrdRegTS Typ="1" TS="2011-04-15T15:24:49.238-05:00"/>
+        <RptSide Side="1" ClOrdID="4B69BE2E1464000E" InptDev="API" InptSrc="RCPLT">
+            <Pty R="44" ID="rcafpl"/>
+            <Pty R="7" ID="TRD_FIRMID">
+                <Sub Typ="5" ID="RCaf  Trading 1"/>
+            </Pty>
+            <Pty R="36" ID="traderid">
+                <Sub Typ="9" ID="RCaf Trader1"/>
+            </Pty>
+            <Alloc CustCpcty="4" IndAllocID2="725148" IndAllocID="67891" Qty="2500000">
+                <RegTrdID ID="1342376677" Typ="0" Src="102RCAF_Namespace" Evnt="1"/>
+                <Pty R="1" ID="817">
+                    <Sub Typ="5" ID="XYZ CLEARING CORP."/>
+                </Pty>
+                <Pty R="24" ID="RCACCT1B" Src="C">
+                    <Sub Typ="26" ID="2"/>
+                </Pty>
+                <Amt Typ="TVAR" Amt="3138.19"/>
+                <Amt Typ="ICPN" Amt="1805.56"/>
+                <Amt Typ="IPMT" Amt="4943.75"/>
+            </Alloc>
+            <Alloc CustCpcty="4" IndAllocID2="725149" IndAllocID="67891" Qty="1500000">
+                <RegTrdID ID="1342376678" Typ="0" Src="102RCAF_Namespace" Evnt="1"/>
+                <Pty R="1" ID="817">
+                    <Sub Typ="5" ID="XYZ CLEARING CORP."/>
+                </Pty>
+                <Pty R="24" ID="RCACCT1A" Src="C">
+                    <Sub Typ="26" ID="2"/>
+                </Pty>
+                <Amt Typ="TVAR" Amt="1882.92"/>
+                <Amt Typ="ICPN" Amt="1083.33"/>
+                <Amt Typ="IPMT" Amt="2966.25"/>
+            </Alloc>
+            <Alloc CustCpcty="4" IndAllocID2="725150" IndAllocID="67890" Qty="1000000">
+                <RegTrdID ID="1342376679" Typ="0" Src="102RCAF_Namespace" Evnt="1"/>
+                <Pty R="24" ID="RC1" Src="D">
+                    <Sub Typ="3" ID="RCPLT"/>
+                </Pty>
+                <Amt Typ="TVAR" Amt="1255.28"/>
+                <Amt Typ="ICPN" Amt="722.22"/>
+                <Amt Typ="IPMT" Amt="1977.50"/>
+            </Alloc>
+        </RptSide>
+        <RptSide Side="2" ClOrdID="XYZ123" InptSrc="RCPLT">
+            <Pty ID="RC2" Src="D" R="24">
+                <Sub Typ="3" ID="RCPLT"/>
+            </Pty>
+            <Pty ID="RCAF_TRD2" R="7">
+                <Sub Typ="49" ID="Y"/>
+            </Pty>
+            <Pty ID="rcaf2" R="36"/>
+        </RptSide>
+    </TrdCaptRptAck>
+</FIXML>
