@@ -1,6 +1,7 @@
 # ttc14-fixml
 
-This is the FunnyQT solution to the FIXML code generation case of the
+This is the [FunnyQT](http://jgralab.github.io/funnyqt/) solution to the FIXML
+code generation case of the
 [Transformation Tool Contest 2014](http://www.transformation-tool-contest.eu/).
 
 ## Usage

@@ -7,16 +7,8 @@ import {{{imported-class}}};
 class {{{class-name}}} {
     {{#fields}}
     private {{{field-type}}} {{{field-name}}};
-
-    public {{{field-type}}} get{{{field-name}}}() {
-	return {{{field-name}}};
-    }
-
-    public void set{{{field-name}}}({{{field-type}}} {{{field-name}}}) {
-	this.{{{field-name}}} = {{{field-name}}};
-    }
-
     {{/fields}}
+
     public {{{class-name}}}() {
 	{{#fields}}
 	this.{{{field-name}}} = {{{field-value-exp}}};
@@ -28,4 +20,14 @@ class {{{class-name}}} {
 	this.{{{field-name}}} = {{{field-name}}};
 	{{/fields}}
     }
+    {{#fields}}
+
+    public {{{field-type}}} get{{{field-name}}}() {
+	return {{{field-name}}};
+    }
+
+    public void set{{{field-name}}}({{{field-type}}} {{{field-name}}}) {
+	this.{{{field-name}}} = {{{field-name}}};
+    }
+    {{/fields}}
 }

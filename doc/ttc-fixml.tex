@@ -47,7 +47,10 @@ and C++ code for a given FIXML messages.  It also solves the extension task of
 heuristically determining appropriate types for the fields of the generated
 classes.  Furthermore, the extension task to generate non-object-oriented C
 code has been solved as well.  The solution project is available on
-Github\footnote{\url{https://github.com/tsdh/ttc14-fixml}}.
+Github\footnote{\url{https://github.com/tsdh/ttc14-fixml}}, and it is set up
+for easy reproduction on the
+SHARE\footnote{\url{http://is.ieis.tue.nl/staff/pvgorp/share/}} image
+\texttt{Ubuntu12LTS\_TTC14\_FunnyQT.vdi}.
 
 The solution is implemented using FunnyQT~\cite{Horn2013MQWFQ} which is a model
 querying and transformation library for the functional Lisp dialect
@@ -681,8 +684,8 @@ data type name for a given \code|field| when generating code for language
     'Builtin (condp = (oo/type type)
                DATE    (timestamp-type lang)
                DOUBLE  "double"
-               INTEGER "int"
-               LONG    "long"
+               INTEGER (case lang (:c :cpp) "long"      "int")
+               LONG    (case lang (:c :cpp) "long long" "long")
                STRING  (string-type lang))
     'Array   (str (field-type (oo/->elemType type) lang)
                   (if (#{:c :cpp} lang) "*" "[]"))))
@@ -692,11 +695,15 @@ In case the field's type is a class, that classes' name is used.  In the case
 of C and C++, an asterisk is prepended, because there pointers to that class
 are used.
 
-The builtin numeric types have the same name in all four languages, but for
-dates and strings, a distinction has to be made.  Lines 21 and 22 simply define
-constant maps from language keys to appropriate type names.  In Clojure, a map
-is a function of its keys, so \code|(string-type :cpp)| returns
-\code|"std::string"| for example.
+For the builtin types distinctions have to be made for integral numbers, dates
+and strings.  While in Java and C\# an integer is 32 bit and a long is 64 bit,
+the size is implementation-dependent for C and C++.  It could also be 32 and 64
+bit, but 16 and 32 bit are also allowed.  Therefore, we use the type
+\cinline|long| for integers and \cinline|long long| for long integers which are
+guaranteed to be at least 32 and 64 bit wide by the C99 standard.  For strings
+and timestamps, lines 21 and 22 simply define constant maps from language keys
+to appropriate type names.  In Clojure, a map is a function of its keys, so
+\code|(string-type :cpp)| returns \code|"std::string"|.
 
 In the case the field's type is an array, the array's element type name gets
 prepended with either an asterisk (for C and C++) or a pair of brackets (Java
@@ -917,10 +924,11 @@ document's schema.
 \label{sec:execution-time}
 
 Table~\ref{tab:exec-times} shows the execution times for the different test
-files.  The column \textbf{XML2OO} contains the times for parsing the XML
-document and generating an XML graph from it (Section~\ref{sec:xml2model}),
-plus the time needed to transform that into an OO model
-(Section~\ref{sec:xml-to-oo}).
+files.  The times have been gathered on SHARE.
+
+The column \textbf{XML2OO} contains the times for parsing the XML document and
+generating an XML graph from it (Section~\ref{sec:xml2model}), plus the time
+needed to transform that into an OO model (Section~\ref{sec:xml-to-oo}).
 
 The columns \textbf{Java}, \textbf{C\#}, \textbf{C++}, and \textbf{C} contain
 the time needed to generate code in the respective language from the OO model
@@ -928,7 +936,7 @@ the time needed to generate code in the respective language from the OO model
 
 The column \textbf{Overall} is the overall time needed for parsing the XML
 document to a graph, transforming that to an OO model, and generating code in
-the four languages.
+all four languages.
 
 \begin{table}[h!t]
   \centering
@@ -936,33 +944,35 @@ the four languages.
     \hline
     \textbf{Message} & \textbf{XML2OO} & \textbf{Java} & \textbf{C\#} & \textbf{C++} & \textbf{C} & \textbf{Overall}\\
     \hline
-    \texttt{test1}                    & 9.0   & 7.5  & 7.8  & 15.9 & 13.0 & 54.8\\
-    \texttt{test2}                    & 14.9  & 19.1 & 19.8 & 27.0 & 26.8 & 109.2\\
-    \texttt{test3}                    & 13.3  & 13.5 & 9.6  & 20.5 & 20.2 & 78.3\\
-    \texttt{test4}                    & 21.9  & 12.8 & 9.6  & 22.9 & 21.6 & 90.9\\
-    \texttt{test5}                    & 50.7  & 13.6 & 10.2 & 20.6 & 22.2 & 119.2\\
-    \texttt{test6}                    & 96.5  & 13.4 & 7.5  & 17.1 & 21.6 & 157.3\\
+    \texttt{test1}                    & 19.1  & 6.8  & 5.2  & 18.6 & 15.3 & 69.7\\
+    \texttt{test2}                    & 47.8  & 17.5 & 25.6 & 49.9 & 35.7 & 179.2\\
+    \texttt{test3}                    & 19.1  & 13.8 & 18.2 & 35.7 & 32.2 & 130.4\\
+    \texttt{test4}                    & 33.1  & 22.3 & 26.9 & 51.1 & 42.6 & 178.7\\
+    \texttt{test5}                    & 70.5  & 13.8 & 15.4 & 31.2 & 37.4 & 178.4\\
+    \texttt{test6}                    & 88.0  & 14.9 & 17.0 & 30.0 & 31.1 & 184.2\\
     \hline
-    \texttt{batch\_message}           & 21.1  & 88.3 & 30.8 & 74.0 & 67.3 & 304.2\\
-    \texttt{new\_order\_single}       & 9.9   & 12.6 & 10.1 & 22.9 & 22.9 & 81.6\\
-    \texttt{trade\_subm\_allocs}      & 18.9  & 5.5  & 5.0  & 10.1 & 9.0  & 49.5\\
-    \texttt{trade\_subm\_allocs\_ack} & 21.6  & 7.2  & 7.0  & 14.8 & 19.4 & 71.1\\
-    \texttt{trade\_subm\_clearing}    & 17.0  & 6.7  & 7.3  & 14.2 & 12.2 & 58.9\\
+    \texttt{batch\_message}           & 31.1  & 83.0 & 31.2 & 85.9 & 54.7 & 305.5\\
+    \texttt{new\_order\_single}       & 30.8  & 5.8  & 5.4  & 12.6 & 20.9 & 78.3\\
+    \texttt{trade\_subm\_allocs}      & 30.8  & 8.9  & 7.4  & 21.8 & 21.8 & 93.5\\
+    \texttt{trade\_subm\_allocs\_ack} & 32.1  & 12.7 & 15.5 & 30.4 & 31.5 & 128.2\\
+    \texttt{trade\_subm\_clearing}    & 22.2  & 9.0  & 8.0  & 24.0 & 22.6 & 88.7\\
     \hline
-    All 11 at once                    & 264.5 & 30.1 & 21.3 & 54.3 & 60.2 & 432.0\\
+    All 11 at once                    & 364.1 & 42.0 & 39.4 & 86.9 & 81.3 & 618.5\\
     \hline
   \end{tabular}
-  \caption{Execution times for the test FIXML messages (in milliseconds)}
+  \caption{Execution times for the test FIXML messages measured on SHARE (in milliseconds)}
   \label{tab:exec-times}
 \end{table}
 
 The FIXML messages \texttt{test1} to \texttt{test6} are the test files provided
 in the case
 project\footnote{\url{https://github.com/TransformationToolContest/ttc2014-fixml}}.
-The next five messages are some additional ones that can be found on the web.
-The last line shows the time needed for parsing all 11 FIXML messages into one
-XML graph, transforming that to an OO model, and then emitting code for the
-four languages.
+The other five messages are some additional ones that can be found on the
+web\footnote{\url{http://www.cmegroup.com/confluence/display/EPICSANDBOX/CME+ClearPort+API+-+FIXML+Message+Samples}}.
+
+The last line shows the time needed for parsing all eleven FIXML messages into
+one single XML graph, transforming that to an OO model, and then emitting code
+in the four languages.
 
 
 \paragraph{Modularity.}
@@ -986,17 +996,17 @@ dependencies.  Thus, the modularity
 \paragraph{Abstraction level.}
 \label{sec:abstraction-level}
 
-The abstraction level of the FunnyQT solution is about medium.
-
 FunnyQT model-to-model transformations like \code|xml-graph2oo-model| are
-mostly declarative, but rules may (and do here) also contain
-functional/imperative code.
+mostly declarative, but rules may also contain functional/imperative code, and
+the rules defined here do so.
 
-The code generation transformation is split into purely declarative templates
-that express the contents of the source code files including their formatting,
-and functions that derive a map of template placeholder keywords to the values
-that have to be filled in.  Those functions are all pure, i.e., they have no
-side-effects and are referentially transparent.
+The code generation is split into declarative templates that express the
+contents of the source code files including their formatting, and functions
+that derive a map of template placeholder keywords to the values that have to
+be filled in for each class.  Those functions are all pure functional, i.e.,
+they have no side-effects and are referentially transparent.
+
+Thus, the abstraction level of the FunnyQT solution is about medium.
 
 
 \section{Conclusion}
@@ -1080,8 +1090,8 @@ project\footnote{\url{http://www.mono-project.com}} for C\#, and
 \code|g++|/\code|gcc| from the GNU Compiler
 Collection\footnote{\url{http://gcc.gnu.org/}} for C++ and C.  However, the C++
 code uses extended initializer lists which are new in the C++11 standard, so a
-\code|-std=c++11| has to be added to the \code|g++| call in order not to get
-warnings.
+\code|-std=c++0x| (or \code|-std=c++11|) has to be added to the \code|g++| call
+in order not to get warnings.
 
 
 \subsection{The Position Report as XML document}

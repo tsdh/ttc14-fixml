@@ -118,8 +118,8 @@
     'Builtin (condp = (oo/type type)
                DATE    (timestamp-type lang)
                DOUBLE  "double"
-               INTEGER "int"
-               LONG    "long"
+               INTEGER (case lang (:c :cpp) "long"      "int")
+               LONG    (case lang (:c :cpp) "long long" "long")
                STRING  (string-type lang))
     'Array   (str (field-type (oo/->elemType type) lang)
                   (if (#{:c :cpp} lang) "*" "[]"))))

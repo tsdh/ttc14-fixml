@@ -7,5 +7,5 @@
   :dependencies [[funnyqt "0.19.5"]
                  [stencil "0.3.3"]]
   :main ^:skip-aot ttc14-fixml.core
-  :jvm-opts ^:replace []
-  :global-vars {*warn-on-reflection* true})
+  ;; :global-vars {*warn-on-reflection* true}
+  :jvm-opts ^:replace ["-Xms512M" "-Xmx512M"])

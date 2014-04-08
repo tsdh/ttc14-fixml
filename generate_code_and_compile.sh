@@ -69,7 +69,7 @@ if [[ -d cpp ]]; then
     for dir in *; do
 	echo "  |-> Compiling ${dir}"
 	cd ${dir}
-	g++ -std=c++11 -fpic -c *.cpp || die "C++ compile failed!"
+	g++ -std=c++0x -fpic -c *.cpp || die "C++ compile failed!"
 	g++ -shared -o lib${dir}.so *.o || die "Linking failed!"
 	cd -
     done
