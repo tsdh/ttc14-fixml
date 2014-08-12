@@ -31,3 +31,12 @@ presentation/*.nav
 presentation/*.snm
 presentation/*.toc
 presentation/*.vrb
+postproc/.minted-ttc-fixml/
+postproc/auto
+postproc/*.aux
+postproc/*.bbl
+postproc/*.blg
+postproc/*.log
+postproc/*.out
+postproc/*.synctex.gz
+postproc/*.pag
