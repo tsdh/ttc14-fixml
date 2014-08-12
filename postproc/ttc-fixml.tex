@@ -4,9 +4,9 @@
 \usepackage[T1]{fontenc}
 \usepackage{url}
 \usepackage{hyperref}
-\usepackage{paralist}
 \usepackage[cache]{minted}
 \newminted{clojure}{fontsize=\fontsize{8}{8},linenos,numbersep=3pt}
+\newminted{java}{fontsize=\fontsize{8}{8},linenos,numbersep=3pt}
 \newmintinline{clojure}{fontsize=\footnotesize}
 \newmintinline{java}{fontsize=\fontsize{8}{8}}
 \newmintinline{xml}{fontsize=\fontsize{8}{8}}
@@ -21,8 +21,9 @@
 \usepackage{graphicx}
 
 \title{Solving the TTC FIXML Case with FunnyQT}
-\author{Tassilo Horn\\
-  \href{mailto:horn@uni-koblenz.de}{horn@uni-koblenz.de}}
+\author{Tassilo Horn
+  \institute{Institute for Software Technology, University Koblenz-Landau, Germany}
+  \email{horn@uni-koblenz.de}}
 
 \def\titlerunning{Solving the TTC FIXML Case with FunnyQT}
 \def\authorrunning{T. Horn}
@@ -47,16 +48,16 @@ This paper describes the FunnyQT solution of the TTC 2014 FIXML
 Case~\cite{fixml-case-desc} which solves the core task of generating Java, C\#,
 and C++ code for a given FIXML messages.  It also solves the extension task of
 heuristically determining appropriate types for the fields of the generated
-classes.  Furthermore, the extension task to generate non-object-oriented C
-code has been solved as well.  The solution also sports several features that
-were not requested.  For example, if an XML element has multiple children with
-the same tag, then the corresponding class or struct will have a field being an
-array of the type corresponding to the tag instead of multiple numbered fields.
-For C++ and C, proper destructors/recursive freeing functions are generated,
-and the classes/structs are declared in a header and defined in a separate
-implementation file.  For all languages, proper import/include/using-statements
-are generated, and the code compiles without warnings using the standard
-compilers for the respective language (GCC, Mono, Java).
+classes and the extension task to generate non-object-oriented C code.  The
+solution also sports several features that were not requested.  For example, if
+an XML element has multiple children with the same tag, then the corresponding
+class or struct will have a field being an array of the type corresponding to
+the tag instead of multiple numbered fields.  For C++ and C, proper
+destructors/recursive freeing functions are generated, and the classes/structs
+are declared in a header and defined in a separate implementation file.  For
+all languages, proper import/include/using-statements are generated, and the
+code compiles without warnings using the standard compilers for the respective
+language (GCC, Mono, Java).
 
 The solution allows to create a data model given a single FIXML message as
 requested by the case description, but it can also be \emph{run on arbitrary
@@ -80,96 +81,32 @@ for easy reproduction on
 SHARE\footnote{\url{http://is.ieis.tue.nl/staff/pvgorp/share/?page=ConfigureNewSession&vdi=Ubuntu12LTS_TTC14_64bit_FunnyQT4.vdi}}.
 
 FunnyQT~\cite{Horn2013MQWFQ} is a model querying and transformation library for
-the functional Lisp dialect Clojure\footnote{\url{http://clojure.org}}.
-Queries and transformations are plain Clojure programs using the features
-provided by the FunnyQT API.  This API is structured into several task-specific
-sub-APIs/namespaces, e.g., there is a namespace \emph{funnyqt.polyfns}
-containing constructs for writing polymorphic functions dispatching on
-metamodel type, a namespace \emph{funnyqt.model2model} containing constructs
-for model-to-model transformations, and so forth.
+the functional Lisp dialect Clojure.  Queries and transformations are plain
+Clojure programs using the features provided by the FunnyQT API.  This API is
+structured into several task-specific sub-APIs/namespaces, e.g., there is a
+namespace \emph{funnyqt.polyfns} containing constructs for writing polymorphic
+functions dispatching on metamodel type, a namespace \emph{funnyqt.model2model}
+containing constructs for model-to-model transformations, etc.
 
 
 \section{Solution Description}
 \label{sec:solution-description}
 
-In this section, the complete transformation specifications for the core and
-extension tasks are going to be explained.
-
-
-In the listings given in the following, all function calls are shown in a
-namespace-qualified form to make it explicit in which namespace those functions
-are defined.  Clojure allows to define short aliases for used namespaces in
-order to allow qualification while still being concise.
-Table~\ref{tab:namespaces} gives an overview of all namespaces used by the
-solution, and the aliases used for accessing them.
-
-\begin{table}[h!t]
-  \centering
-  \begin{tabular}{| l | l | l |}
-    \hline
-    \textbf{Alias} & \textbf{Namespace}           & \textbf{Description}\\
-    \hline
-    \textsf{emf}   & \textsf{funnyqt.emf}         & Core EMF API\\
-    \textsf{gen}   & \textsf{funnyqt.generic}     & Generic model access functions\\
-    \textsf{m2m}   & \textsf{funnyqt.model2model} & Model-to-Model transformation API\\
-    \textsf{oo}    & \textsf{ttc14-fixml.oo}      & Generated OO model API\\
-    \textsf{poly}  & \textsf{funnyqt.polyfns}     & Polymorphic function API\\
-    \textsf{tg}    & \textsf{funnyqt.emf}         & Core TGraph API\\
-    \textsf{u}     & \textsf{funnyqt.utils}       & Utility functions (e.g., error handling)\\
-    \textsf{xml}   & \textsf{ttc14-fixml.xml}     & Generated XML model API\\
-    \textsf{xmltg} & \textsf{funnyqt.xmltg}       & Generic XML to XML-Graph transformation\\
-    \hline
-  \end{tabular}
-  \caption{Used Clojure and FunnyQT namespaces with their aliases}
-  \label{tab:namespaces}
-\end{table}
-
-All function calls that are not qualified with an alias are calls to functions
-in the \emph{clojure.core} namespace which is available in any other namespace
-by default.
+In this section, the transformation specifications for the core and extension
+tasks are going to be explained.
 
 \subsection{XML to Model}
 \label{sec:xml2model}
 
 Since handling XML files is a common task, FunnyQT already ships with a
-namespace \emph{funnyqt.xmltg} which contains a transformation from XML files
-to a DOM-like TGraph model conforming to the metamodel in
-Figure~\ref{fig:xml-mm}.
-
-\begin{figure}[h!t]
-  \centering
-  \includegraphics[width=.8\textwidth]{xml-schema}
-  \caption{FunnyQT's XML Graph metamodel}
-  \label{fig:xml-mm}
-\end{figure}
-
-It models XML elements, their attributes, text contents, and children.  It also
-supports XML namespaces, and the transformation may be supplemented with
-additional XML schema information in order to resolve \texttt{IDREF} and
-\texttt{IDREFS} references automatically.
-
-\begin{sloppypar}
-  Namespaces and references are not important in this case, so a plain call
-  \code|(xmltg/xml2xml-graph "test2.xml")| suffices to handle core task
-  number~1, i.e., generate an XML model from an XML file.  The graph
-  corresponding to the position report message contained in the file
-  \texttt{test2.xml} is visualized in the appendix
-  Section~\ref{sec:posrpt:xml}.
-\end{sloppypar}
+namespace \emph{funnyqt.xmltg} which contains a transformation function
+\code|xml2xml-graph| from XML files to a DOM-like model conforming to a
+detailed XML metamodel which also supports XML namespaces.
 
 The \code|xml2xml-graph| function uses Java's \emph{Stream API for XML}
 (\emph{StAX}) under the hoods, so XML files that aren't well-formed lead to
-parsing errors.  These are the errors you get for the invalid test files
-\texttt{test7.xml} and \texttt{test8.xml}:
-
-\begin{clojurecode*}{numbers=none}
-(xmltg/xml2xml-graph "messages/test7.xml")
-;NoSuchElementException ParseError at [row,col]:[14,7]
-;Message: The element type "Sndr" must be terminated by the matching end-tag "</Sndr>".
-(xmltg/xml2xml-graph "messages/test8.xml")
-;NoSuchElementException ParseError at [row,col]:[19,9]
-;Message: The element type "Hdr" must be terminated by the matching end-tag "</Hdr>".
-\end{clojurecode*}
+parsing errors, e.g., for the provided test files \texttt{test7.xml} and
+\texttt{test8.xml}:
 
 
 \subsection{XML Model to OO Model}
@@ -182,86 +119,46 @@ Figure~\ref{fig:oo-mm}.
 
 \begin{figure}[h!t]
   \centering
-  \includegraphics[width=.6\textwidth]{../model/oo}
+  \includegraphics[width=\textwidth]{../postproc/oo-mm}
   \caption{The OO metamodel}
   \label{fig:oo-mm}
 \end{figure}
 
-Classes have a name and arbitray many fields.  Each field has a name, an
-initial value, and a type.  Types may be classes, builtin types, or arrays.
-The different builtin types will be used for solving the extension task of
-determining a sensible type for a field, and instead of creating many separate
-fields if an XML element contains multiple child elements with a given tag, we
-create just one field which is an array of the class corresponding to the child
-element's tag name.
-
-The metamodel in Figure~\ref{fig:oo-mm} is an Ecore model, so the
-transformation from XML model to OO model actually transforms between two
-different modeling frameworks: the input is an XML TGraph model, and the output
-is an OO EMF model.
-
 In the remainder of this section, the transformation will be discussed in
-details.  Before the actual transformation definition, there's a little bit
-helper code.  The following two calls generate metamodel-specific APIs for the
-XML and the OO metamodels in the namespaces \code|ttc14-fixml.xml| and
-\code|ttc14-fixml.oo| which are referred to by the aliases \code|xml| and
-\code|oo|.
+details.  FunnyQT contains a feature for generating metamodel-specific APIs
+which is used here.  The generated XML and OO APIs are referred to by the
+namespace aliases \code|xml| and \code|oo|.  They contain a pair of getter and
+setter functions for each attribute (e.g., \code|(xml/name el)| and
+\code|(xml/set-name! el val)|), role name accessor functions (e.g.,
+\code|(xml/->children el)| or \code|(oo/fields cls)|), and several more.
 
-\begin{clojurecode}
-(tg/generate-schema-functions       "xml-schema.tg"  ttc14-fixml.xml xml)
-(emf/generate-ecore-model-functions "model/oo.ecore" ttc14-fixml.oo  oo)
-\end{clojurecode}
-
-The generated APIs contain a pair of getter and setter functions for each
-attribute (e.g., \code|(xml/name el)| and \code|(xms/set-name! el val)|), role
-name accessor functions (e.g., \code|(xml/->children el)| or \code|(oo/fields
-cls)|), and several more.
-
-Next, we define some constants for the values of the \code|Builtins|
-enumeration of the OO metamodel.
-
-\begin{clojurecode*}{firstnumber=3}
-(def DATE    (emf/eenum-literal 'Builtins.DATE))
-(def INTEGER (emf/eenum-literal 'Builtins.INTEGER))
-(def LONG    (emf/eenum-literal 'Builtins.LONG))
-(def DOUBLE  (emf/eenum-literal 'Builtins.DOUBLE))
-(def STRING  (emf/eenum-literal 'Builtins.STRING))
-\end{clojurecode*}
-
-The EMF-specific function \code|emf/eenum-literal| returns the enumeration
-literal given by a symbol denoting its qualified name.
-
-Then, the actual transformation definition from XML model to OO model follows.
 In FunnyQT, a model-to-model transformation is specified using the
-\code|m2m/deftransformation| macro.  It receives the name of the transformation
+\code|deftransformation| macro.  It receives the name of the transformation
 (\code|xml-graph2oo-model|), and a vector defining input models and output
 models plus additional parameters.  In this case, there is only one single
 input model \code|xml|, one single output model \code|oo|, and no additional
 parameters.
 
-\begin{clojurecode*}{firstnumber=8}
-(m2m/deftransformation xml-graph2oo-model [[xml] [oo]]
-  ;; rule & function definitions...
-  )
+\begin{clojurecode*}{numbers=none}
+(deftransformation xml-graph2oo-model [[xml] [oo]]
+  ...)
 \end{clojurecode*}
 
 Inside such a transformation definition, arbitrary many rule and helper
 function definitions may occur.  The first rule of the transformation is
 \code|element2class| shown in the next listing.
 
-\begin{clojurecode*}{firstnumber=9}
+\begin{clojurecode*}{numbers=none}
   (^:top element2class
    :from [e '[:and Element !RootElement]]
    :to   [c (element-name2class (xml/name e))])
 \end{clojurecode*}
 
-The \code|^:top| annotation defines this rule as a top-level rule.  Such a rule
-is automatically applied to all matching elements.  The \code|:from| clause
-restricts the elements \code|e| this rule is applicable for to those that are
-of metamodel type \code|Element| but not of type \code|RootElement| (which is a
-subclass of \code|Element| according to Figure~\ref{fig:xml-mm}).  The reason
-is that we don't want to create a class for the \texttt{FIXML} element which is
-the root element of any FIXML message.
+The \code|^:top| annotation defines this rule as a top-level rule being applied
+automatically.  The \code|:from| clause restricts the elements \code|e| this
+rule is applicable for to those of metamodel type \code|Element| but not of
+type \code|RootElement|.  The reason is that we don't want to create a class
+for the \texttt{FIXML} element which is the root element of any FIXML message.
 
 The \code|:to| clause defines which elements should be created for matching
 elements.  Usually, it would be specified as \code|:to [x 'SomeClass]| in which
@@ -283,7 +180,7 @@ traceability.
 
 The next rule is \code|element-name2class| which is shown below.
 
-\begin{clojurecode*}{firstnumber=12}
+\begin{clojurecode*}{numbers=none}
   (element-name2class
    :from [tag-name]
    :to   [c 'Class {:name tag-name}]
@@ -310,47 +207,14 @@ contents\footnote{The case description doesn't specify if and how XML character
   content should be handled.  However, without them transforming
   \texttt{test3.xml} and \texttt{test4.xml} would lead to classes with no
   fields at all which doesn't make much sense.}  of element \code|e|,
-respectively.  These rules are shown below.
+respectively.  These rules and the helpers \code|all-attributes|,
+\code|all-children|, and \code|all-character-contents| are skipped in for
+brevity, but they follow the same style and mechanics.
 
-\begin{clojurecode*}{firstnumber=21}
-  (attribute2field
-   :from [an at av class]
-   :to   [f 'Field {:name an :type at :initialValue av :class class}])
-  (children-of-same-tag2field
-   :from [tag max-child-no class]
-   :to   [f 'Field {:class class}]
-   (if (= 1 max-child-no)
-     (do (oo/set-name! f (str tag "_obj"))
-         (oo/->set-type! f (element-name2class tag)))
-     (let [array-type (oo/create-Array! oo :size max-child-no :elemType (element-name2class tag))]
-       (oo/set-name! f (str tag "_objs"))
-       (oo/->set-type! f array-type))))
-       (oo/->set-type! f array-type))))
-  (character-contents2field
-   :from [char-conts class]
-   :to   [f 'Field {:name "Content" :initialValue (first char-conts)
-                    :type (guess-type char-conts) :class class}])
-\end{clojurecode*}
+The next listing shown the helpers implementing the extension task of
+heuristically determining an appropriate field type from XML attribute values.
 
-The \code|attribute2field| rule gets an attribute name \code|an|, its type
-\code|at|, its initial value \code|av|, and the \code|class| to which to add
-the new field \code|f|.
-
-The \code|children-of-same-tag2field| rule gets a child tag name \code|tag|,
-the maximum number of children having that tag \code|max-child-no|, and again
-the \code|class| to which to add the new field \code|f|.  If there is only one
-child of a tag, then the field's type is the class corresponding to the
-tag\footnote{Note how the rule \code|element-name2class| is called here to
-  resolve the class created for a tag name}.  If there are multiple children of
-that tag, then the field's type is array of objects of the class corresponding
-to the tag.
-
-Lastly, \code|character-contents2field| receives a collection \code|char-conts|
-of character contents and again the \code|class| to which to add the new field
-\code|f|.  That new field gets the fixed name ``Content'', and its type is
-guessed by a function \code|guess-type| which is shown in the next listing.
-
-\begin{clojurecode*}{firstnumber=38}
+\begin{clojurecode*}{numbers=none}
   (guess-type [vals]
    (let [ts (set (map #(condp re-matches %
                          #"\d\d\d\d-\d\d-\d\d.*" DATE
@@ -365,21 +229,12 @@ guessed by a function \code|guess-type| which is shown in the next listing.
        (= ts #{DOUBLE LONG INTEGER}) DOUBLE
        (= ts #{INTEGER LONG})        LONG
        :else                         STRING))))
-  (int-type [val]
-   (try (and (Integer/parseInt val) INTEGER)
-        (catch NumberFormatException _
-          (try (and (Long/parseLong val) LONG)
-               (catch NumberFormatException _
-                 STRING)))))
-  (get-or-create-builtin-type
-   :from [t]
-   :to   [bit 'Builtin {:type t}])
 \end{clojurecode*}
 
-The \code|guess-type| function receives a collection \code|vals| from which to
-guess an appropriate type.  \code|vals| could either be all character contents
-of an XML element, or all attribute values of an attribute that occurs in many
-XML elements of the same tag.
+The \code|guess-type| function receives a collection \code|vals| of XML
+attribute values.  \code|vals| could either be all character contents of an XML
+element, or all attribute values of an attribute that occurs in many XML
+elements of the same tag.
 
 Every given value is checked against a regular expression that determines its
 type being either a timestamp in ISO 8601 notation, a double value, or an
@@ -388,82 +243,32 @@ case of an integer value, the function \code|int-type| further determines if
 the value can be represented as a 32 bit integer, or if a 64 bit long is
 needed, or if it is so large that it can only be represented as a string.
 
-Lines 45 to 51 pick the type that can be used to represent all values.  If all
-values are guessed to be of the very same type (line 46), then this type is
-chosen.  For multiple numeric types, the respective ``largest'' type is chosen
-where \code|INTEGER| \(<\)
-\code|LONG| \(<\) \code|DOUBLE|.  Else, we fall back to \code|STRING|.
+The \code|cond| expression picks the type that can be used to represent all
+values.  If all values are guessed to be of the very same type, then this type
+is chosen.  For multiple numeric types, the respective ``largest'' type is
+chosen where \code|INTEGER| < \code|LONG| < \code|DOUBLE|.  Else, we fall back
+to \code|STRING|.
 
 The picked type is then passed to the rule \code|get-or-create-builtin-type|
 which creates a \code|Builtin| whose \code|type| attribute is set to the picked
 type \code|t|.  As a result, the OO model contains at most one \code|Builtin|
 element per \code|Builtins| enumeration literal.
 
-The last part of the transformation are the functions that compute the
-information about attributes, child elements, and character contents that are
-passed to the respective rules by the \code|element-name2class| rule starting
-in line~12.  All three functions have to cater for the fact that elements of
-the same tag may occur multiple times in the XML document, and each occurence
-may use a different subset of the attributes and child elements it may have
-according to the FIXML specification.  Therefore, a helper function
-\code|elements-of-tag| is defined that given a \code|tag-name| returns all
-elements having that tag.
+The complete \code|xml-graph2oo-model| transformation consists of 6 rules and 7
+helpers amounting to 70 lines of code.  The result is an OO model whose field
+elements already have the heuristically guessed types, and where
+multiple-occuring XML child elements of the same type where compressed to array
+fields.  This model can then easily be serialized to code in different
+programming languages.
 
-\begin{clojurecode*}{firstnumber=61}
-  (all-attributes [tag-name]
-   (->> (elements-of-tag tag-name) (mapcat xml/->attributes) (group-by xml/name)
-        (map (fn [[an as]]
-               [an (guess-type (map xml/value as)) (xml/value (first as))]))))
-  (elements-of-tag [tag-name]
-   (->> (xml/vseq-Element xml) (filter #(= tag-name (xml/name %)))))
-  (all-children [tag-name]
-   (let [child-tag-names (->> (elements-of-tag tag-name) (mapcat xml/->children)
-                              (map xml/name) (into #{}))]
-     (map (fn [ctn] [ctn (max-children-of-tag tag-name ctn)]) child-tag-names)))
-  (max-children-of-tag [tag-name child-tag-name]
-   (reduce (fn [old el]
-             (let [cot (count (filter #(= child-tag-name (xml/name %)) (xml/->children el)))]
-               (if (> cot old) cot old)))
-               0 (elements-of-tag tag-name)))
-  (all-character-contents [tag-name]
-   (->> (elements-of-tag tag-name) (mapcat xml/->charContents)
-        (map xml/content) (remove str/blank?))))
-\end{clojurecode*}
-
-\code|all-attributes| gets a \code|tag-name|, computes all elements having this
-tag, computes the union of attributes, and groups them by their name.  This
-results in a sequence of tuples of the form \code|[an as]| where \code|an| is
-the attribute name and \code|as| is a collection of all attributes with that
-name.  All those tuples are then processed with a function that returns a tuple
-of the attribute name, the type guessed from all values, and the first
-attribute's value (which will be used as initial value for the corresponding
-field).  That's exactly the information relevant for the \code|attribute2field|
-rule (see call in line~16 and definition starting in line~21).
-
-\code|all-children| first computes the tag names of all elements that occur as
-child of an element with tag \code|tag-name|.  For each of them, it computes a
-tuple of the form \code|[ctn max-child-no]| where \code|ctn| is the child tag
-name, and \code|max-child-no| is the largest number of children of that child
-tag that occur together in an element.  Again, that's the relevant information
-for the \code|children-of-same-tag2field| rule (see call in line~18 and
-definition starting in line~24)
-
-Lastly, \code|all-character-contents| returns a sequence containing all
-non-empty character contents of all elements of tag \code|tag-name|.  Its
-result is passed to the \code|character-contents2field| rule (called in line~20
-and defined in line~34).
-
-The OO model generated for the the position report message contained in the
-file \texttt{test2.xml} is visualized in the appendix
-Section~\ref{sec:posrpt:oo}.
 
 \subsection{OO Model to Code}
 \label{sec:oo-model-to-code}
 
-The third and last step of the overall transformation is to generate code in
-different programming languages from the OO model created in the previous step.
-In addition to the core task languages, the FunnyQT solution also generates C
-code as an extension.
+The last step of the overall transformation is to generate code in different
+programming languages from the OO model created in the previous step.  In
+addition to the core task languages, the FunnyQT solution also generates C code
+as an extension.
 
 One crucial benefit of FunnyQT being a Clojure library is that we can simply
 use arbitrary other Clojure and Java libraries for our needs.  So for this
@@ -480,39 +285,35 @@ value of the map has to be a collection of maps.
 
 We'll discuss the solution using the template for Java.
 
-\javafile{../resources/templates/class.java}
+\begin{javacode*}{numbers=none}
+package {{{pkg-name}}};
+{{#imports}}
+import {{{imported-class}}};
+{{/imports}}
 
-When we want to render a class named \code|C| in package \code|p| that uses the
-\code|java.util.Date| class and contains two fields \code|f1| and \code|f2| of
-type \code|String| and \code|Date| and initial values ``Hello'' and
-\code|2003-09-10T00:00:00|, we would need to provide the following map to the
-rendering function.
+class {{{class-name}}} {
+    {{#fields}}
+    private {{{field-type}}} {{{field-name}}};
+    {{/fields}}
 
-\begin{clojurecode*}{linenos=none}
-  {:pkg-name "p"
-   :imports [{:imported-class "java.util.Date"}]
-   :class-name "C"
-   :fields [{:field-type "String"
-             :field-name "f1"
-             :field-value-exp "\"Hello\""
-             :first true}
-            {:field-type "Date"
-             :field-name "f2"
-             :field-value-exp "Util.parseDate(\"2003-09-10T00:00:00\");"}]}
-\end{clojurecode*}
+    public {{{class-name}}}() {
+	{{#fields}}
+	this.{{{field-name}}} = {{{field-value-exp}}};
+	{{/fields}}
+    }
+    // parametrized constructor, getters, and setters elided...
+}
+\end{javacode*}
 
-The \code|:first| key with value \code|true| needs to be added to the map
-corresponding to the first field of the class for rendering the parameter list
-of the non-default constructor.  Every parameter which has no \code|:first| key
-gets prepended by a comma and a space\footnote{See line 26 of the template
-  which uses an inverted mustache section: \javainline|{{^first}}, {{/first}}|.
-  Only if there is no \code|:first| key (or a \code|:first| key with value
-  \code|false|) the comma followed by a space is emitted.}.
+So a map to feed to the Stencil templating engine needs to provide they keys
+\code|:pkg-name|, \code|:imports|, \code|:class-name|, etc.  The values for the
+\code|:imports| and \code|:fields| keys need to be collections of maps
+representing one import or field each, e.g., a field is represented as a map
+with keys \code|:field-type|, \code|:field-name|, and
+\code|:field-value-expression|.
 
-The templates for the other languages use the same keys\footnote{The key names
-  are a bit Java specific, but they have analogues in the other languages.  For
-  example, for C and C++ the \code|:imported-class| values in the
-  \code|:imports| vector are in fact the header files to be included.}, so the
+The templates for the other languages use the same keys (although there are
+some keys in the C and C++ templates that are only needed by them), so the
 essential job of the code generation task is to derive such a map for every
 class in our OO model that can then be passed to Stencil's rendering function.
 
@@ -520,405 +321,96 @@ This is done using a FunnyQT polymorphic function \code|to-mustache| whose
 definition is given below.
 
 \begin{clojurecode}
-(poly/declare-polyfn to-mustache [el lang pkg])
-
-(poly/defpolyfn to-mustache oo.Class [cls lang pkg]
+(declare-polyfn to-mustache [el lang pkg])
+(defpolyfn to-mustache oo.Class [cls lang pkg]
   {:pkg-name pkg
    :imports (get-imports cls lang)
    :class-name (oo/name cls)
    :fields (mark-first-field (map #(to-mustache % lang pkg) (oo/->fields cls)))})
-
-(poly/defpolyfn to-mustache oo.Field [f lang pkg]
+(defpolyfn to-mustache oo.Field [f lang pkg]
   {:field-type (field-type (oo/->type f) lang)
    :field-name (oo/name f)
    :field-value-exp (field-value-exp f lang)
-   :uscored-field-name (str "_" (oo/name f))
    :plain-field-type (let [t (oo/->type f)]
-                       (gen/type-case t
+                       (type-case t
                          'Array (oo/name (oo/->elemType t))
                          'Class (oo/name t)
-                         nil))
-   :pointer (gen/has-type? (oo/type f) 'Class)
-   :array (gen/has-type? (oo/type f) 'Array)})
+                         nil))})
 \end{clojurecode}
 
 A polymorphic function in FunnyQT is a function that dispatches between several
-implementations based on the metamodel type of its first argument.  Thus you
+implementations based on the metamodel type of its first argument.  Thus, you
 can view them as a kind of object-oriented method attached to metamodel classes
 that may be overridden by subclasses.
 
 Line 1 declares the polymorphic function \code|to-mustache| and defines that it
 gets three parameters: an OO model element \code|el|, the target language
 \code|lang|, and the package/namespace name \code|pkg| in which the
-class/struct should be generated.
+class/struct should be generated.  Lines 2 to 6 then define an implementation
+for elements of the metamodel class \code|Class|, and lines 7-18 define an
+implementation for elements of metamodel class \code|Field|.
 
-Lines 3 to 7 then define an implementation for elements of the metamodel class
-\code|Class|.  It returns a literal map where \code|:pkg-name| is the package
-name provided as argument, \code|:imports| is computed by a function
-\code|get-imports|, the \code|:class-name| is the name of the \code|Class|
-element \code|cls|, and \code|:fields| is computed by applying the
-\code|to-mustache| function to all fields of the class (and marking the first
-as discussed above).
+Both implementations call several helper functions that query the OO model to
+compute the relevant values for the map's keys which are skipped for brevity
+here.
 
-Lines 9 to 20 define the \code|to-mustache| implementation for elements of
-metamodel class \code|Field|.  The language-dependent \code|:field-type| is
-computed by a function \code|field-type|, the \code|:field-name| is the name of
-the \code|Field| element, and the \code|:field-value-exp| used to initialize
-the field in the default constructor is computed by a function
-\code|field-value-exp|.
-
-The additional key \code|:uscored-field-name| is the field name prefixed with
-an underscore.  This variant is used for fields in C++ and C\#, because in
-these languages, a field must not be named like its enclosing class but there
-are FIXML elements that have an attribute named like the element tag, e.g.,
-\xmlinline|<Amt Typ="FMTM" Amt="0.00"/>|.
-
-The three further keys \code|:plain-field-type|, \code|:pointer|, and
-\code|:array| are only needed for the C and C++ templates where they are used
-to generate a proper destructor or a proper function for freeing a struct
-pointer recursively.
-
-The next listing shown the \code|field-type| function returning the appropriate
-data type name for a given \code|field| when generating code for language
-\code|lang|.
-
-\begin{clojurecode*}{firstnumber=21}
-(def string-type {:java "String", :csharp "string", :cpp "std::string", :c "char*"})
-(def timestamp-type {:java "Date", :csharp "DateTime", :cpp "std::tm", :c "struct tm"})
-
-(defn object-type [class lang]
-  (str (oo/name class) (when (#{:c :cpp} lang) "*")))
-
-(defn field-type [type lang]
-  (gen/type-case type
-    'Class   (object-type type lang)
-    'Builtin (condp = (oo/type type)
-               DATE    (timestamp-type lang)
-               DOUBLE  "double"
-               INTEGER (case lang (:c :cpp) "long"      "int")
-               LONG    (case lang (:c :cpp) "long long" "long")
-               STRING  (string-type lang))
-    'Array   (str (field-type (oo/->elemType type) lang)
-                  (if (#{:c :cpp} lang) "*" "[]"))))
-\end{clojurecode*}
-
-In case the field's type is a class, that classes' name is used.  In the case
-of C and C++, an asterisk is prepended, because there pointers to that class
-are used.
-
-For the builtin types distinctions have to be made for integral numbers, dates
-and strings.  While in Java and C\# an integer is 32 bit and a long is 64 bit,
-the size is implementation-dependent for C and C++.  It could also be 32 and 64
-bit, but 16 and 32 bit are also allowed.  Therefore, we use the type
-\cinline|long| for integers and \cinline|long long| for long integers which are
-guaranteed to be at least 32 and 64 bit wide by the C99 standard.  For strings
-and timestamps, lines 21 and 22 simply define constant maps from language keys
-to appropriate type names.  In Clojure, a map is a function of its keys, so
-\code|(string-type :cpp)| returns \code|"std::string"|.
-
-In the case the field's type is an array, the array's element type name gets
-prepended with either an asterisk (for C and C++) or a pair of brackets (Java
-and C\#).
-
-The probably most complex function of the code generation is
-\code|field-value-exp| shown in the next listing.  It generates the expression
-used to initialize the given \code|field| in the programming language
-\code|lang|.
-
-\begin{clojurecode*}{firstnumber=38}
-(defn field-value-exp [field lang]
-  (let [type (oo/->type field)
-        val (oo/initialValue field)]
-    (gen/type-case type
-      'Class (if (= lang :c)
-               (str "make_default_" (oo/name (oo/->type field)) "()")
-               (str "new " (oo/name (oo/->type field)) "()"))
-      'Builtin (condp = (oo/type type)
-                 DATE   (case lang
-                          :cpp (str "Util::parseDate(\"" val "\")")
-                          :c   (str "parseDate(\"" val "\")")
-                          (str "Util.parseDate(\"" val "\")"))
-                 STRING (str "\"" val "\"")
-                 LONG   (str val "L")
-                 val)
-      'Array (if (= lang :c)
-               (format "(%s) make_pointer_array(%s, %s)"
-                       (field-type type lang)
-                       (oo/size type)
-                       (str/join ", " (for [i (range (oo/size type))]
-                                        (format "make_default_%s()"
-                                                (oo/name (oo/->elemType type))))))
-               (format "new %s[%s] {%s}"
-                       (field-type (oo/->elemType type) lang)
-                       (if (= lang :cpp) (oo/size type) "")
-                       (str/join ", " (for [i (range (oo/size type))]
-                                        (format "new %s()"
-                                                (oo/name (oo/->elemType type))))))))))
-\end{clojurecode*}
-
-Fields that have some other class as their type, the value expression is
-usually \code|new OtherClass()|, i.e., a call to that class' default
-constructor.  In C, however, there is no \code|new| and no constructors, so the
-C template generates a \code|make_default_StructName()| function for which a
-call is returned here.
-
-For fields of builtin types several distinctions have to be made.  Dates are
-always parsed by an auxilliary \code|parseDate()| method contained by some
-\code|Util| class.  Strings have to be enclosed in double quotes.  Long
-literals need to be suffixed with \code|L|, else a long literal that's larger
-than the largest integer will lead to a parsing error.  Lastly, integer and
-double numbers can be emitted as-is, i.e., as they occured in the XML document.
-
-For array fields, the value expression is usually a literal array initializer
-form containing calls to the default constructors of the class corresponding to
-the array's element type.  Again, since there's no \code|new| and no
-constructors in C, a call to a generic \code|make_pointer_array()| varargs
-function is generated.  This function allocates memory for a pointer array of
-the given size \(n\)
-plus one, assigns the pointers given as arguments to the indices \(0\)
-to \(n-1\),
-and index \(n\)
-is set to \cinline|NULL|.  This \cinline|NULL|-termination of the arrays allows
-us to generate proper freeing functions that recursively free the memory held
-by a struct of the data model.  A possibly better approach was to use some
-third-party memory management library like
-\emph{talloc}\footnote{\url{http://talloc.samba.org/}} instead which wouldn't
-require such ``tricks'', but we decided to only use the standard C library.
-
-The next listing contains the \code|file-ending| function which has
-implementations for arity one and two.  If given only a \code|lang| keyword, it
-returns the typical file name suffix for that language where for C and C++ it
-returns the suffix of a header.  To get the file name ending for the
-implementation file instead, one needs to call \code|file-ending| with
-additional argument \code|impl| set to \code|true|.
-
-\begin{clojurecode*}{firstnumber=66}
-(defn file-ending
-  ([lang] ({:java "java", :csharp "cs", :cpp "hpp", :c "h"} lang))
-  ([lang impl]
-     (if impl
-       (case lang :cpp "cpp" :c "c")
-       (file-ending lang))))
-\end{clojurecode*}
-
-The next listing shows the \code|get-imports| function which calculates the
-classes/files/namespaces of a class \code|cls| that need to be
-imported/included/used in the language \code|lang|.
-
-\begin{clojurecode*}{firstnumber=72}
-(defn get-imports [cls lang]
-  (letfn [(includes-from-type [t]
-            (gen/type-case t
-              'Class   (when (#{:c :cpp} lang)
-                         [(format "\"%s.%s\"" (oo/name t) (file-ending lang))])
-              'Builtin (condp = (oo/type t)
-                         DATE   (case lang
-                                    :java   ["java.util.Date"]
-                                    :csharp ["System"]
-                                    :cpp    ["<ctime>" "\"Util.hpp\""]
-                                    :c      ["<time.h>" "\"Util.h\""])
-                         STRING (when (= lang :cpp) ["<string>"])
-                         nil)
-              'Array   (concat (when (#{:c :cpp} lang)
-                                 (includes-from-type (oo/->elemType t)))
-                               (when (= lang :c)
-                                 ["\"Util.h\""]))))]
-    (map (fn [import] {:imported-class import})
-         (set (mapcat includes-from-type (gen/adjs cls :fields :type))))))
-\end{clojurecode*}
-
-In the case of C and C++, every implementation file of a class needs to include
-the corresponding header.  Classes that have fields of a date type need to
-import special classes/namespaces/headers in all four languages, and for C++,
-there needs to be an include even for being able to use the standard string
-type.  For arrays, the C and C++ versions need to include the header
-corresponding to the element type, and for C also the \texttt{Util.h} header
-has to be included because of the call to the generic pointer-array creation
-function.
-
-The main driver of the code generation is the function \code|oo2code| given
-below.
-
-\begin{clojurecode*}{firstnumber=91}
-(defn oo2code [oo pkg lang]
-  (let [dir (format "results/%s/%s" (name lang) pkg)]
-    (.mkdirs (io/file dir))
-    (spit (format "%s/Util.%s" dir (file-ending lang))
-          (s/render-file (format "templates/Util.%s" (file-ending lang))
-                         {:pkg-name pkg}))
-    (when (#{:c :cpp} lang)
-      (spit (format "%s/Util.%s" dir (file-ending lang true))
-            (s/render-file (format "templates/Util.%s" (file-ending lang true))
-                           {:pkg-name pkg})))
-    (doseq [cls (oo/eall-Classes oo)]
-      (spit (format "%s/%s.%s" dir (oo/name cls) (file-ending lang))
-            (s/render-file (format "templates/class.%s" (file-ending lang))
-                           (to-mustache cls lang pkg)))
-      (when (#{:c :cpp} lang)
-        (spit (format "%s/%s.%s" dir (oo/name cls) (file-ending lang true))
-              (s/render-file (format "templates/class.%s" (file-ending lang true))
-                             (to-mustache cls lang pkg)))))))
-\end{clojurecode*}
-
-It the receives the OO model \code|oo|, a package name in which to generate the
-code, and the target language \code|lang|.  The files will be generated in a
-directory \code|results/<lang>/<pkg>/|.
-
-Lines 94 to 100 generate the utility class file containing the date parsing
-methods (for C and C++, split in header and implementation) and the generic
-pointer-array creation function in the case of C.
-
-Then, lines 101 to 108 generate a class file for every class contained in the
-OO model.  Again, in the case of C and C++, actually one header and one
-implementation file is emitted per class.
 
 \section{Evaluation}
 \label{sec:evaluation}
 
-\paragraph{Complexity.}
-\label{sec:complexity}
+The \emph{complexity} according to the evaluation criteria should be measured
+as the sum of number of operator occurrences and feature and entity type name
+references in the specification expressions.  The FunnyQT solution contains
+about 300 expressions (function calls, conditional expressions, etc.), 24
+metamodel type references, and 18 property references resulting in a complexity
+of 342.  So it is probably quite complex, but most of its complexity is a
+result of that it does much more than what was required.
 
-The complexity according to the evaluation criteria should be measured as the
-sum of number of operator occurrences and feature and entity type name
-references in the specification expressions.
+\emph{Accuracy} should measure the degree of syntactical correctness of the
+generated code, and the degree of how well the generated code matches the
+source FIXML messages.  The FunnyQT solution has a very high accuracy.  The
+code is correct for all four languages and compiles without warnings.  It also
+matches the source FIXML messages very well.  Especially creating array fields
+for XML child elements that occur multiple times is much better than creating
+numbered fields.  Also, guessing appropriate types for the fields instead of
+always using string improves the usefulness of the generated code.  Finally,
+that the transformation can be run on an arbitrarily large sample of FIXML
+messages in one go improves the accuracy of the generated classes even more.
 
-The FunnyQT solution contains about 300 expressions (function calls,
-conditional expressions, etc.), 24 metamodel type references, and 18 property
-references resulting in a complexity of 342.  So it is probably quite complex,
-but most of its complexity is a result of that it does much more than what was
-required, e.g., guess appropriate field types, generate C code, generate
-destructors and freeing functions for C++ and C, separate header and
-implementation files for C++ and C, generate getters and setters, etc.
-
-
-\paragraph{Accuracy.}
-\label{sec:accuracy}
-
-Accuracy should measure the degree of syntactical correctness of the generated
-code, and the degree of how well the generated code matches the source FIXML
-messages.
-
-The FunnyQT solution has a very high accuracy.  The code is correct for all
-four languages and compiles without warnings.  It also matches the source FIXML
-messages very well.  Especially creating array fields for XML child elements
-that occur multiple times is much better than creating numbered fields.  Also,
-guessing appropriate types for the fields instead of always using string
-improves the usefulness of the generated code.  Finally, that the
-transformation can be run on an arbitrarily large sample of FIXML messages in
-one go improves the accuracy of the generated classes even more.
-
-\paragraph{Development effort.}
-\label{sec:development-effort}
-
-Developing the solution has been a on-and-off effort.  Prototyping an initial
-solution only for Java took about 4 person-hours.  Extending that to C\# was
-rather easy, however when C++ (and even worse C) with their pointers and split
-in headers and implementation files came into play, a major refactoring of the
-code generation code was needed.  So all in all, the overall development time
-can be estimated with about 12 person-hours.
-
-\paragraph{Fault tolerance.}
-\label{sec:fault-tolerance}
+Developing the solution has been a on-and-off effort.  All in all, the overall
+\emph{development time} can be estimated with about 12 person-hours.
 
 Since FunnyQT's generic \code|xml2xml-graph| transformation uses Java's StAX
-API internally, the fault tolerance is high.  Documents that are not
-well-formed lead to errors like the ones printed in Section~\ref{sec:xml2model}
-for the broken test files \texttt{test7.xml} and \texttt{test8.xml}.
+API internally, the \emph{fault tolerance} is high.  Documents which are not
+well-formed lead to parsing errors.
 
-If the XML documents also declare or reference a DTD or an XML schema, then the
-transformation can also use a validating StAX parser that also throws an
-exception when the document while being well-formed does not conform to the
-document's schema.
-
-
-\paragraph{Execution time.}
-\label{sec:execution-time}
-
-Table~\ref{tab:exec-times} shows the execution times for the different test
-files.  The times have been gathered using the FunnyQT SHARE image
-\texttt{Ubuntu12LTS\_TTC14\_64bit\_FunnyQT4.vdi}.
-
-The column \textbf{XML2OO} contains the times for parsing the XML document and
-generating an XML graph from it (Section~\ref{sec:xml2model}), plus the time
-needed to transform that into an OO model (Section~\ref{sec:xml-to-oo}).
-
-The columns \textbf{Java}, \textbf{C\#}, \textbf{C++}, and \textbf{C} contain
-the time needed to generate code in the respective language from the OO model
-(Section~\ref{sec:oo-model-to-code}).
-
-The column \textbf{Overall} is the overall time needed for parsing the XML
-document to a graph, transforming that to an OO model, and generating code in
-all four languages.
-
-\begin{table}[h!t]
-  \centering
-  \begin{tabular}{| l | r | r | r | r | r | r |}
-    \hline
-    \textbf{Message} & \textbf{XML2OO} & \textbf{Java} & \textbf{C\#} & \textbf{C++} & \textbf{C} & \textbf{Overall}\\
-    \hline
-    \texttt{test1}                    & 33.6  & 35.0  & 35.6  & 43.8 & 47.7 & 206.2\\
-    \texttt{test2}                    & 45.8  & 43.6 & 58.7 & 196.4 & 167.2 & 537.3\\
-    \texttt{test3}                    & 97.0  & 82.4 & 65.6 & 74.3 & 81.8 & 419.4\\
-    \texttt{test4}                    & 84.1  & 42.7 & 30.4 & 66.3 & 67.1 & 299.0\\
-    \texttt{test5}                    & 215.5  & 52.3 & 28.0 & 94.7 & 84.2 & 507.2\\
-    \texttt{test6}                    & 278.7  & 51.9 & 64.1 & 121.9 & 129.7 & 674.7\\
-    \hline
-    \texttt{batch\_message}           & 140.4  & 449.8 & 206.9 & 397.2 & 183.6 & 1552.3\\
-    \texttt{new\_order\_single}       & 31.3  & 41.5  & 42.7  & 103.9 & 81.4 & 313.9\\
-    \texttt{trade\_subm\_allocs}      & 154.8  & 57.6  & 60.3  & 65.4 & 66.1 & 413.3\\
-    \texttt{trade\_subm\_allocs\_ack} & 122.6  & 19.1 & 22.4 & 46.1 & 76.2 & 293.0\\
-    \texttt{trade\_subm\_clearing}    & 78.8  & 24.3  & 27.4  & 37.4 & 24.1 & 197.5\\
-    \hline
-    All 11 at once                    & 1046.8 & 88.7 & 94.4 & 186.5 & 180.5 & 1610.5\\
-    \hline
-  \end{tabular}
-  \caption{Execution times for the test FIXML messages measured on SHARE (in milliseconds)}
-  \label{tab:exec-times}
-\end{table}
-
-The FIXML messages \texttt{test1} to \texttt{test6} are the test files provided
-in the case
-project\footnote{\url{https://github.com/TransformationToolContest/ttc2014-fixml}}.
-The other five messages are some additional ones that can be found on the
-web\footnote{\url{http://www.cmegroup.com/confluence/display/EPICSANDBOX/CME+ClearPort+API+-+FIXML+Message+Samples}}.
-
-The last line shows the time needed for parsing all eleven FIXML messages into
-one single XML graph, transforming that to an OO model, and then emitting code
-in the four languages.
+The \emph{execution time} are good.  For all provided test models, the complete
+transformation including parsing XML, transforming the XML model to an OO model
+followed by generating code in all four languages took at most 700 milliseconds
+on SHARE.  Running the transformation on all provided and five additional FIXML
+messages at once took about 1.5 seconds.
 
 
-\paragraph{Modularity.}
-\label{sec:modularity}
-
-The \code|xml-graph2oo-model| consists of \(r=6\)
-rules, one marked as a top-level rule.  All other rules are called explicitly
-which gives \(d=5\)
-or \(d=6\)
-dependencies, depending on if the marking of a top-level rule counts as
-ordering dependency, too.  Thus, its modularity according to the formula
-\(Mod = 1 - \frac{d}{r}\) is between zero and \(0.1\overline{6}\).
-
-The code generation is implemented using 10 functions that call each other.
-Since \code|to-mustache| and \code|field-type| are recursive, and
-\code|field-type| is called from two different functions, we can count 12 call
-dependencies.  Thus, the modularity
-\(Mod = 1 - \frac{d}{r} = 1 - \frac{12}{10} = -0.2\).
+Concerning \emph{modularity}, the \code|xml-graph2oo-model| consists of \(r=6\)
+rules.  All rules except the top-level rule are called explicitly which gives
+\(d=5\).
+Thus, its modularity according to the formula \(Mod = 1 - \frac{d}{r}\)
+is \(0.1\overline{6}\).
+The code generation is implemented with 10 functions that call each other.
+Since some functions are recursive and called from different places 12 call
+dependencies can be counted.  Thus, the modularity is
+\(Mod = 1 - \frac{12}{10} = -0.2\).
 
 
-\paragraph{Abstraction level.}
-\label{sec:abstraction-level}
-
-FunnyQT model-to-model transformations like \code|xml-graph2oo-model| are
-mostly declarative, but rules may also contain functional/imperative code, and
-the rules defined here do so.
-
-The code generation is split into declarative templates that express the
+With respect to \emph{abstraction level}, FunnyQT model-to-model
+transformations like \code|xml-graph2oo-model| are mostly declarative, but
+rules may also contain functional/imperative code, and the rules defined here
+do so. The code generation is split into declarative templates that express the
 contents of the source code files including their formatting, and functions
 that derive a map of template placeholder keywords to the values that have to
 be filled in for each class.  Those functions are all pure functional, i.e.,
-they have no side-effects and are referentially transparent.
-
-Thus, the abstraction level of the FunnyQT solution is about medium.
+they have no side-effects and are referentially transparent.  Thus, the
+abstraction level of the FunnyQT solution is about medium.
 
 
 \section{Conclusion}
@@ -926,32 +418,15 @@ Thus, the abstraction level of the FunnyQT solution is about medium.
 
 In this paper, the FunnyQT solution to the TTC 2014 FIXML case has been
 discussed.  It solves the core task of generating Java, C\#, and C++ code for a
-given FIXML message, and the transformation is structured as requested by the
-case description, i.e., there is a generic XML-to-XMLModel transformation
-(built into FunnyQT), there is an XMLModel-to-OOModel transformation, and there
-is an OOModel-to-Text transformation.
+given FIXML message.  The solution also solves the extension tasks of
+determining appropriate field types and of generating non-object-oriented C
+code.
 
-The solution also solves the extension tasks of determining appropriate field
-types from the attribute values occuring in the FIXML messages and of
-generating non-object-oriented C code.
-
-The extension task of generating the data model from the FIXML schema instead
-from instance messages has not been tackled.  Of course, this would be the only
-sane approach to generating a correct data model.  But the FIXML specification
-is very large (more than 50 individual XML schemas) and complex, so the effort
-needed to write such a transformation, preferably as a generic
-XMLSchema-to-OOModel transformation, is much too high for a TTC case.  However,
-the possibility to run the FunnyQT transformation on an arbitrary large set of
-sample FIXML messages at once offers a different possibility to generate a
-suitable data model.  When being run on a set of samples containing messages of
-all possible types with representative attribute values including minima and
-maxima and children elements, then the data model generated by the FunnyQT
-solution should be very similar to what could be generated from the FIXML XSD.
-
-Nevertheless, the FunnyQT solution adds several more features that haven't been
+Furthermore, the FunnyQT solution adds several more features that haven't been
 requested like generation of getters and setters, separation of headers and
-implementation files for C and C++, and the generation of destructors for C++
-and freeing functions for struct pointers in C.
+implementation files for C and C++, the generation of array-valued fields for
+XML children of the same tag, and the generation of destructors for C++ and
+freeing functions for struct pointers in C.
 
 The generated code in all four languages can be compiled and linked as-is
 without warnings or special compiler settings.
@@ -959,7 +434,7 @@ without warnings or special compiler settings.
 Given its amount of features, the solution is quite concise.  The complete
 \code|xml-graph2oo-model| transformation consists of 78 lines of code, and the
 code generation is implemented in 108 lines of code plus additional 206 lines
-of Java/C\#/C++/C code and Mustache markup in 12 templates.
+of Mustache markup in 12 templates.
 
 
 
