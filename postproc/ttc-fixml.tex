@@ -11,14 +11,15 @@
 \newmintinline{java}{fontsize=\fontsize{8}{8}}
 \newmintinline{xml}{fontsize=\fontsize{8}{8}}
 \newmintinline{c}{fontsize=\fontsize{8}{8}}
-\newmintedfile{java}{frame=lines,fontsize=\fontsize{8}{8},linenos,numbersep=3pt}
-\newmintedfile{csharp}{frame=lines,fontsize=\fontsize{8}{8},linenos,numbersep=3pt}
-\newmintedfile{cpp}{frame=lines,fontsize=\fontsize{8}{8},linenos,numbersep=3pt}
-\newmintedfile{c}{frame=lines,fontsize=\fontsize{8}{8},linenos,numbersep=3pt}
+\newminted{csharp}{frame=lines,fontsize=\fontsize{8}{8},linenos,numbersep=3pt}
+\newminted{cpp}{frame=lines,fontsize=\fontsize{8}{8},linenos,numbersep=3pt}
+\newminted{c}{frame=lines,fontsize=\fontsize{8}{8},linenos,numbersep=3pt}
 \newmintedfile{xml}{frame=lines,fontsize=\fontsize{8}{8},linenos,numbersep=3pt}
 \newcommand{\code}{\clojureinline}
 \usepackage{paralist}
 \usepackage{graphicx}
+
+\usepackage[skip=0pt]{caption}
 
 \title{Solving the TTC FIXML Case with FunnyQT}
 \author{Tassilo Horn
@@ -62,60 +63,53 @@ language (GCC, Mono, Java).
 The solution allows to create a data model given a single FIXML message as
 requested by the case description, but it can also be \emph{run on arbitrary
   many FIXML messages at once}.  The idea is that with a reasonable large
-number of sample FIXML messages, the transformation is able to produce a much
-more accurate data model.  By having more samples, optional attributes and
-child elements are more likely to be identified.  Similarly, child elements
-which usually occur only once but may in fact occur multiple times are more
-likely to be identified and lead to the declaration of a corresponding
-array-valued field instead of just an object-valued field.  And finally, the
-heuristical detection of an appropriate field type benefits from more sample
-data, too.
+number of sample messages, the transformation is able to produce a more
+accurate data model.  By having more samples, optional attributes and child
+elements are more likely to be identified.  Similarly, child elements which
+usually occur only once but may in fact occur multiple times are more likely to
+be identified.  And finally, the heuristical detection of an appropriate field
+type benefits from more sample data, too.
 
 Section~\ref{sec:posrpt} in the appendix on page~\pageref{sec:posrpt} shows the
-Java, C\#, and C++ classes as well as the C structs and functions that are
-generated for the FIXML position report message \texttt{test2.xml}.
+code which was generated for the FIXML position report message
+\texttt{test2.xml}.
+
+FunnyQT~\cite{Horn2013MQWFQ} is a model querying and transformation library for
+the functional Lisp dialect Clojure.  Queries and transformations are plain
+Clojure programs using the features provided by the FunnyQT API.  This API is
+structured into several task-specific sub-APIs/namespaces, e.g., there is a
+namespace containing constructs for writing polymorphic functions dispatching
+on metamodel type, a namespace containing constructs for model-to-model
+transformations, etc.
 
 The solution project is available on
 Github\footnote{\url{https://github.com/tsdh/ttc14-fixml}}, and it is set up
 for easy reproduction on
 SHARE\footnote{\url{http://is.ieis.tue.nl/staff/pvgorp/share/?page=ConfigureNewSession&vdi=Ubuntu12LTS_TTC14_64bit_FunnyQT4.vdi}}.
 
-FunnyQT~\cite{Horn2013MQWFQ} is a model querying and transformation library for
-the functional Lisp dialect Clojure.  Queries and transformations are plain
-Clojure programs using the features provided by the FunnyQT API.  This API is
-structured into several task-specific sub-APIs/namespaces, e.g., there is a
-namespace \emph{funnyqt.polyfns} containing constructs for writing polymorphic
-functions dispatching on metamodel type, a namespace \emph{funnyqt.model2model}
-containing constructs for model-to-model transformations, etc.
-
-
 \section{Solution Description}
 \label{sec:solution-description}
 
-In this section, the transformation specifications for the core and extension
-tasks are going to be explained.
+In this section, the transformation specification for all three main tasks is
+going to be explained.
 
-\subsection{XML to Model}
+\subsection{Task 1: XML to Model}
 \label{sec:xml2model}
 
 Since handling XML files is a common task, FunnyQT already ships with a
 namespace \emph{funnyqt.xmltg} which contains a transformation function
 \code|xml2xml-graph| from XML files to a DOM-like model conforming to a
-detailed XML metamodel which also supports XML namespaces.
-
-The \code|xml2xml-graph| function uses Java's \emph{Stream API for XML}
-(\emph{StAX}) under the hoods, so XML files that aren't well-formed lead to
-parsing errors, e.g., for the provided test files \texttt{test7.xml} and
-\texttt{test8.xml}:
+detailed XML metamodel which also supports XML namespaces.  This function uses
+Java's \emph{Stream API for XML} (\emph{StAX}) under the hoods, so XML files
+that aren't well-formed lead to parsing errors.
 
 
-\subsection{XML Model to OO Model}
+\subsection{Task 2: XML Model to OO Model}
 \label{sec:xml-to-oo}
 
-Core task~2 deals with transforming the XML models generated by core task~1
-into models conforming to a metamodel suited for object-oriented programming
-languages.  The metamodel used by the FunnyQT solution is shown in
-Figure~\ref{fig:oo-mm}.
+Core task~2 deals with transforming the XML models into models conforming to a
+metamodel suited for object-oriented languages.  The metamodel used by the
+FunnyQT solution is shown in Figure~\ref{fig:oo-mm}.
 
 \begin{figure}[h!t]
   \centering
@@ -124,20 +118,17 @@ Figure~\ref{fig:oo-mm}.
   \label{fig:oo-mm}
 \end{figure}
 
-In the remainder of this section, the transformation will be discussed in
-details.  FunnyQT contains a feature for generating metamodel-specific APIs
-which is used here.  The generated XML and OO APIs are referred to by the
-namespace aliases \code|xml| and \code|oo|.  They contain a pair of getter and
-setter functions for each attribute (e.g., \code|(xml/name el)| and
-\code|(xml/set-name! el val)|), role name accessor functions (e.g.,
-\code|(xml/->children el)| or \code|(oo/fields cls)|), and several more.
+FunnyQT contains a feature for generating metamodel-specific APIs which is used
+here.  The generated XML and OO APIs are referred to by the namespace aliases
+\code|xml| and \code|oo| in the listings below.  They contain getter and setter
+functions for attributes (e.g., \code|(xml/set-name! el val)|), role name
+accessor functions (e.g., \code|(oo/->fields cls)|), and several more.
 
 In FunnyQT, a model-to-model transformation is specified using the
-\code|deftransformation| macro.  It receives the name of the transformation
-(\code|xml-graph2oo-model|), and a vector defining input models and output
-models plus additional parameters.  In this case, there is only one single
-input model \code|xml|, one single output model \code|oo|, and no additional
-parameters.
+\code|deftransformation| macro.  It receives the name of the transformation,
+and a vector defining input and output models plus additional parameters.  In
+this case, there is only one single input model \code|xml|, one single output
+model \code|oo|.
 
 \begin{clojurecode*}{numbers=none}
 (deftransformation xml-graph2oo-model [[xml] [oo]]
@@ -169,16 +160,18 @@ name, and there should be exactly one OO class per unique tag name.  Therefore,
 the \code|:to| clause delegates the creation of class \code|c| to another rule
 \code|element-name2class| providing \code|e|'s tag name as argument.
 
-The semantics of a rule are as follows.  When it is applied to an input element
-for which its \code|:from| clause matches, target elements are created
-according to its \code|:to| cause.  The mapping from input to output elements
-is saved.  When a rule gets applied to an element it has already been applied
-to, the elements that have been created by the first call are returned instead
-of creating new elements.  That way, calling a rule serves both creation of
-target elements as well as resolution of input to output elements in terms of
-traceability.
+When a rule is applied to an input element for which its \code|:from| clause
+matches, target elements are created according to its \code|:to| cause.  The
+mapping from input to output elements is saved.  When a rule gets applied to an
+element it has already been applied to, the elements that have been created by
+the first call are returned instead of creating new elements.
 
-The next rule is \code|element-name2class| which is shown below.
+The \code|element-name2class| rule shown below receives as input a plain
+string, the \code|tag-name| of an element, and it creates a \code|Class c| in
+the target model.  The name of the class corresponds to the \code|tag-name|.
+According to the rule semantics sketched above and the fact that this rule gets
+called with the tag name of any element by \code|element2class|, there will be
+one target class for every unique tag name.
 
 \begin{clojurecode*}{numbers=none}
   (element-name2class
@@ -192,26 +185,19 @@ The next rule is \code|element-name2class| which is shown below.
      (character-contents2field char-conts c)))
 \end{clojurecode*}
 
-This rule receives as input a plain string, the \code|tag-name| of an element,
-and it creates a \code|Class c| in the target model.  The name of the class
-corresponds to the \code|tag-name|.  According to the rule semantics sketched
-above and the fact that this rule gets called with the tag name of any element
-by \code|element2class|, there will be one target class for every unique tag
-name.
-
 Following the \code|:from| and \code|:to| clauses comes the rule's body where
 arbitrary code may be written.  Here, three other rules \code|attribute2field|,
 \code|children-of-same-tag2field|, and \code|character-contents2field| are
 called for all XML attributes, child elements, and character
-contents\footnote{The case description doesn't specify if and how XML character
-  content should be handled.  However, without them transforming
-  \texttt{test3.xml} and \texttt{test4.xml} would lead to classes with no
-  fields at all which doesn't make much sense.}  of element \code|e|,
-respectively.  These rules and the helpers \code|all-attributes|,
-\code|all-children|, and \code|all-character-contents| are skipped in for
-brevity, but they follow the same style and mechanics.
+contents\footnote{The case description doesn't demand that XML character
+  content should be handled.  However, without handling them transforming
+  \texttt{test3.xml} and \texttt{test4.xml} would lead to several classes
+  without any fields.}  of element \code|e|, respectively.  These rules and the
+helpers \code|all-attributes|, \code|all-children|, and
+\code|all-character-contents| are skipped in for brevity, but they follow the
+same style and mechanics.
 
-The next listing shown the helpers implementing the extension task of
+The next listing shows the helper implementing the extension task of
 heuristically determining an appropriate field type from XML attribute values.
 
 \begin{clojurecode*}{numbers=none}
@@ -231,38 +217,31 @@ heuristically determining an appropriate field type from XML attribute values.
        :else                         STRING))))
 \end{clojurecode*}
 
-The \code|guess-type| function receives a collection \code|vals| of XML
-attribute values.  \code|vals| could either be all character contents of an XML
-element, or all attribute values of an attribute that occurs in many XML
-elements of the same tag.
-
-Every given value is checked against a regular expression that determines its
-type being either a timestamp in ISO 8601 notation, a double value, or an
-integer value.  If neither matches, then \code|STRING| is used as its type.  In
-case of an integer value, the function \code|int-type| further determines if
-the value can be represented as a 32 bit integer, or if a 64 bit long is
-needed, or if it is so large that it can only be represented as a string.
+The \code|guess-type| function receives a collection \code|vals|.  \code|vals|
+could either be all character contents of an XML element, or all attribute
+values of an attribute that occurs in many XML elements of the same tag.  Every
+given value is checked against a regular expression that determines its type
+being either a timestamp in ISO 8601 notation, a double value, or an integer
+value.  If neither matches, then \code|STRING| is used as its type.  In case of
+an integer value, the function \code|int-type| further determines if the value
+can be represented as a 32 bit integer, or if a 64 bit long is needed.
 
 The \code|cond| expression picks the type that can be used to represent all
 values.  If all values are guessed to be of the very same type, then this type
 is chosen.  For multiple numeric types, the respective ``largest'' type is
 chosen where \code|INTEGER| < \code|LONG| < \code|DOUBLE|.  Else, we fall back
-to \code|STRING|.
-
-The picked type is then passed to the rule \code|get-or-create-builtin-type|
-which creates a \code|Builtin| whose \code|type| attribute is set to the picked
-type \code|t|.  As a result, the OO model contains at most one \code|Builtin|
-element per \code|Builtins| enumeration literal.
+to \code|STRING|.  The picked type is then passed to the rule
+\code|get-or-create-builtin-type| which creates a \code|Builtin| whose
+\code|type| attribute is set to the type determined by the \code|cond|
+expression.
 
 The complete \code|xml-graph2oo-model| transformation consists of 6 rules and 7
-helpers amounting to 70 lines of code.  The result is an OO model whose field
-elements already have the heuristically guessed types, and where
-multiple-occuring XML child elements of the same type where compressed to array
-fields.  This model can then easily be serialized to code in different
-programming languages.
+helpers amounting to 70 LOC.  The result is an OO model whose field elements
+already have the heuristically guessed types, and where multiple-occuring XML
+child elements of the same type where compressed to array fields.
 
 
-\subsection{OO Model to Code}
+\subsection{Task 3: OO Model to Code}
 \label{sec:oo-model-to-code}
 
 The last step of the overall transformation is to generate code in different
@@ -281,25 +260,22 @@ is that one defines a template file containing placeholders which can be
 rendered to a concrete file by providing a map where the keys are the
 placeholder names and the values are the text that should be substituted.
 There are also placeholders for collections in which case the corresponding
-value of the map has to be a collection of maps.
-
-We'll discuss the solution using the template for Java.
+value of the map has to be a collection of maps.  We'll discuss the solution
+using the template for Java.
 
 \begin{javacode*}{numbers=none}
 package {{{pkg-name}}};
 {{#imports}}
 import {{{imported-class}}};
 {{/imports}}
-
 class {{{class-name}}} {
     {{#fields}}
     private {{{field-type}}} {{{field-name}}};
     {{/fields}}
-
     public {{{class-name}}}() {
-	{{#fields}}
-	this.{{{field-name}}} = {{{field-value-exp}}};
-	{{/fields}}
+        {{#fields}}
+        this.{{{field-name}}} = {{{field-value-exp}}};
+        {{/fields}}
     }
     // parametrized constructor, getters, and setters elided...
 }
@@ -339,32 +315,28 @@ definition is given below.
 \end{clojurecode}
 
 A polymorphic function in FunnyQT is a function that dispatches between several
-implementations based on the metamodel type of its first argument.  Thus, you
-can view them as a kind of object-oriented method attached to metamodel classes
-that may be overridden by subclasses.
-
-Line 1 declares the polymorphic function \code|to-mustache| and defines that it
-gets three parameters: an OO model element \code|el|, the target language
+implementations based on the metamodel type of its first argument.  They can be
+seen as a kind of object-oriented method attached to metamodel classes.  Line 1
+declares the polymorphic function \code|to-mustache| and defines that it gets
+three parameters: an OO model element \code|el|, the target language
 \code|lang|, and the package/namespace name \code|pkg| in which the
 class/struct should be generated.  Lines 2 to 6 then define an implementation
 for elements of the metamodel class \code|Class|, and lines 7-18 define an
-implementation for elements of metamodel class \code|Field|.
-
-Both implementations call several helper functions that query the OO model to
+implementation for elements of metamodel class \code|Field|.  Both
+implementations call several helper functions that query the OO model to
 compute the relevant values for the map's keys which are skipped for brevity
 here.
 
 
-\section{Evaluation}
+\section{Evaluation and Conclusion}
 \label{sec:evaluation}
 
 The \emph{complexity} according to the evaluation criteria should be measured
 as the sum of number of operator occurrences and feature and entity type name
-references in the specification expressions.  The FunnyQT solution contains
-about 300 expressions (function calls, conditional expressions, etc.), 24
-metamodel type references, and 18 property references resulting in a complexity
-of 342.  So it is probably quite complex, but most of its complexity is a
-result of that it does much more than what was required.
+references in the specification.  The FunnyQT solution contains about 300
+expressions, 24 metamodel type references, and 18 property references resulting
+in a complexity of 342.  So it is quite complex but it does much more than what
+was required.
 
 \emph{Accuracy} should measure the degree of syntactical correctness of the
 generated code, and the degree of how well the generated code matches the
@@ -375,163 +347,621 @@ for XML child elements that occur multiple times is much better than creating
 numbered fields.  Also, guessing appropriate types for the fields instead of
 always using string improves the usefulness of the generated code.  Finally,
 that the transformation can be run on an arbitrarily large sample of FIXML
-messages in one go improves the accuracy of the generated classes even more.
+messages in one go improves the accuracy of the generated code even more.
 
-Developing the solution has been a on-and-off effort.  All in all, the overall
-\emph{development time} can be estimated with about 12 person-hours.
+The overall \emph{development time} of the solution can be estimated with about
+12 person-hours.
 
 Since FunnyQT's generic \code|xml2xml-graph| transformation uses Java's StAX
 API internally, the \emph{fault tolerance} is high.  Documents which are not
 well-formed lead to parsing errors.
 
-The \emph{execution time} are good.  For all provided test models, the complete
+The \emph{execution time} is good.  For all provided test models, the complete
 transformation including parsing XML, transforming the XML model to an OO model
 followed by generating code in all four languages took at most 700 milliseconds
 on SHARE.  Running the transformation on all provided and five additional FIXML
 messages at once took about 1.5 seconds.
 
-
-Concerning \emph{modularity}, the \code|xml-graph2oo-model| consists of \(r=6\)
-rules.  All rules except the top-level rule are called explicitly which gives
-\(d=5\).
-Thus, its modularity according to the formula \(Mod = 1 - \frac{d}{r}\)
-is \(0.1\overline{6}\).
-The code generation is implemented with 10 functions that call each other.
-Since some functions are recursive and called from different places 12 call
-dependencies can be counted.  Thus, the modularity is
-\(Mod = 1 - \frac{12}{10} = -0.2\).
+The \emph{modularity} of the \code|xml-graph2oo-model| is
+\(Mod = 1 - \frac{d}{r} = 1 - \frac{5}{6} = 0.1\overline{6}\)
+where \(r\)
+is the number of rules and \(d\)
+is the number of dependencies between them.  The code generation is implemented
+with 10 functions that call each other.  Since some functions are recursive and
+called from different places 12 call dependencies can be counted.  Thus, the
+modularity is \(Mod = 1 - \frac{12}{10} = -0.2\).
 
 
-With respect to \emph{abstraction level}, FunnyQT model-to-model
-transformations like \code|xml-graph2oo-model| are mostly declarative, but
-rules may also contain functional/imperative code, and the rules defined here
-do so. The code generation is split into declarative templates that express the
-contents of the source code files including their formatting, and functions
-that derive a map of template placeholder keywords to the values that have to
-be filled in for each class.  Those functions are all pure functional, i.e.,
-they have no side-effects and are referentially transparent.  Thus, the
-abstraction level of the FunnyQT solution is about medium.
-
-
-\section{Conclusion}
-\label{sec:conclusion}
-
-In this paper, the FunnyQT solution to the TTC 2014 FIXML case has been
-discussed.  It solves the core task of generating Java, C\#, and C++ code for a
-given FIXML message.  The solution also solves the extension tasks of
-determining appropriate field types and of generating non-object-oriented C
-code.
-
-Furthermore, the FunnyQT solution adds several more features that haven't been
-requested like generation of getters and setters, separation of headers and
-implementation files for C and C++, the generation of array-valued fields for
-XML children of the same tag, and the generation of destructors for C++ and
-freeing functions for struct pointers in C.
-
-The generated code in all four languages can be compiled and linked as-is
-without warnings or special compiler settings.
-
-Given its amount of features, the solution is quite concise.  The complete
-\code|xml-graph2oo-model| transformation consists of 78 lines of code, and the
-code generation is implemented in 108 lines of code plus additional 206 lines
-of Mustache markup in 12 templates.
-
-
+With respect to \emph{abstraction level}, the \code|xml-graph2oo-model|
+transformation is quite low-level. The code generation is split into
+declarative templates, and functions that derive a map of template placeholder
+keywords to the values that have to be filled in for each class.  Those
+functions are all pure functional.  Thus, the abstraction level of the FunnyQT
+solution is about medium.
 
 
 \bibliographystyle{alpha}
 \bibliography{ttc-fixml}
 
-% \newpage
-% \appendix
+\newpage
+\appendix
 
-% \section{Transformation of a Position Report Message}
-% \label{sec:posrpt}
+\section{Transformation of a Position Report Message}
+\label{sec:posrpt}
 
-% In this section, the stepwise outcomes of transforming a position report
-% message (\texttt{test2.xml}) are illustrated.
+In this section, the stepwise outcomes of transforming a position report
+message (\texttt{test2.xml}) are illustrated.
 
-% The FIXML document itself is printed in Section~\ref{sec:posrpt:xml}.
+The FIXML document itself is printed in Section~\ref{sec:posrpt:xml}.
 
-% Section~\ref{sec:posrpt:xml-graph} shows its representation as TGraph
-% conforming to the XML metamodel shown in Figure~\ref{fig:xml-mm}.  This part of
-% the overall transformation has been discussed in Section~\ref{sec:xml2model}.
+Section~\ref{sec:posrpt:xml-graph} shows its representation as an FunnyQT XML
+model.  This part of the overall transformation has been discussed in
+Section~\ref{sec:xml2model}.
 
-% Section~\ref{sec:posrpt:oo} shows the OO model conforming to the metamodel
-% shown in Figure~\ref{fig:oo-mm} which is generated by the
-% \code|xml-graph2oo-model| transformation discussed in
-% Section~\ref{sec:xml-to-oo}.
+Section~\ref{sec:posrpt:oo} shows the OO model conforming to the metamodel
+shown in Figure~\ref{fig:oo-mm} which is generated by the
+\code|xml-graph2oo-model| transformation discussed in
+Section~\ref{sec:xml-to-oo}.
 
-% Finally, the sections \ref{sec:posrpt:java}, \ref{sec:posrpt:csharp},
-% \ref{sec:posrpt:cpp}, and \ref{sec:posrpt:c} show the source code files for the
-% \code|PosRpt| class and the \code|Util| class which contains helpers for the
-% data model classes.  For Java and C\#, there is only one source code file for
-% the \code|PosRpt| class whereas for C++ and C, the class/struct is declared in
-% a header file and its definition is held in a separate implementation file.  It
-% should be noted that all source code files are printed here exactly as produced
-% by the transformation.  No additional formatting has been done, and they all
-% compile without warnings using standard compilers for the languages, i.e.,
-% \code|javac| from the OpenJDK project\footnote{\url{http://openjdk.java.net/}}
-% for Java, \code|mcs| from the Mono
-% project\footnote{\url{http://www.mono-project.com}} for C\#, and
-% \code|g++|/\code|gcc| from the GNU Compiler
-% Collection\footnote{\url{http://gcc.gnu.org/}} for C++ and C.  However, the C++
-% code uses extended initializer lists which are new in the C++11 standard, so a
-% \code|-std=c++0x| (or \code|-std=c++11|) has to be added to the \code|g++| call
-% in order not to get warnings.
+Finally, the sections \ref{sec:posrpt:java}, \ref{sec:posrpt:csharp},
+\ref{sec:posrpt:cpp}, and \ref{sec:posrpt:c} show the source code files for the
+\code|PosRpt| class and the \code|Util| class which contains helpers for the
+data model classes.  For Java and C\#, there is only one source code file for
+the \code|PosRpt| class whereas for C++ and C, the class/struct is declared in
+a header file and its definition is held in a separate implementation file.  It
+should be noted that all source code files are printed here exactly as produced
+by the transformation.  No additional formatting has been done, and they all
+compile without warnings using standard compilers for the languages, i.e.,
+\code|javac| from the OpenJDK project\footnote{\url{http://openjdk.java.net/}}
+for Java, \code|mcs| from the Mono
+project\footnote{\url{http://www.mono-project.com}} for C\#, and
+\code|g++|/\code|gcc| from the GNU Compiler
+Collection\footnote{\url{http://gcc.gnu.org/}} for C++ and C.  However, the C++
+code uses extended initializer lists which are new in the C++11 standard, so a
+\code|-std=c++0x| (or \code|-std=c++11|) has to be added to the \code|g++| call
+in order not to get warnings.
 
 
-% \subsection{The Position Report as XML document}
-% \label{sec:posrpt:xml}
+\subsection{The Position Report as XML document}
+\label{sec:posrpt:xml}
 
-% \xmlfile{../messages/test2.xml}
+\xmlfile{../messages/test2.xml}
 
-% \newpage
-% \subsection{The Position Report as XML Graph}
-% \label{sec:posrpt:xml-graph}
-% \begin{center}
-%   \includegraphics[angle=90,height=.95\textheight]{xml-test2}
-% \end{center}
+\newpage
+\subsection{The Position Report as XML Graph}
+\label{sec:posrpt:xml-graph}
+\begin{center}
+  \includegraphics[angle=90,height=.95\textheight]{xml-test2}
+\end{center}
 
-% \newpage
-% \subsection{The Position Report as OO Model}
-% \label{sec:posrpt:oo}
-% \begin{center}
-%   \includegraphics[angle=90,height=.95\textheight]{oo-test2}
-% \end{center}
+\newpage
+\subsection{The Position Report as OO Model}
+\label{sec:posrpt:oo}
+\begin{center}
+  \includegraphics[angle=90,height=.95\textheight]{oo-test2}
+\end{center}
 
-% \newpage
-% \subsection{The Position Report as Java Class}
-% \label{sec:posrpt:java}
+\newpage
+\subsection{The Position Report as Java Class}
+\label{sec:posrpt:java}
 
-% \javafile{../results/java/test2/PosRpt.java}
-% \javafile{../results/java/test2/Util.java}
+\paragraph{PosRpt.java}
+\begin{javacode}
+package test2;
 
-% \newpage
-% \subsection{The Position Report as C\# Class}
-% \label{sec:posrpt:csharp}
+import java.util.Date;
 
-% \csharpfile{../results/csharp/test2/PosRpt.cs}
-% \csharpfile{../results/csharp/test2/Util.cs}
+class PosRpt {
+    private int ReqTyp;
+    private String Ccy;
+    private int Rslt;
+    private int AcctTyp;
+    private int SetPxTyp;
+    private double PriSetPx;
+    private int RptID;
+    private double SetPx;
+    private Date BizDt;
+    private int Acct;
+    private Amt Amt_obj;
+    private Instrmt Instrmt_obj;
+    private Qty[] Qty_objs;
+    private Pty[] Pty_objs;
+    private Hdr Hdr_obj;
 
-% \newpage
-% \subsection{The Position Report as C++ Class}
-% \label{sec:posrpt:cpp}
+    public PosRpt() {
+        this.ReqTyp = 0;
+        this.Ccy = "USD";
+        this.Rslt = 0;
+        this.AcctTyp = 1;
+        this.SetPxTyp = 1;
+        this.PriSetPx = 0.00;
+        this.RptID = 541386431;
+        this.SetPx = 0.00;
+        this.BizDt = Util.parseDate("2003-09-10T00:00:00");
+        this.Acct = 1;
+        this.Amt_obj = new Amt();
+        this.Instrmt_obj = new Instrmt();
+        this.Qty_objs = new Qty[] {new Qty(), new Qty(), new Qty()};
+        this.Pty_objs = new Pty[] {new Pty(), new Pty(), new Pty()};
+        this.Hdr_obj = new Hdr();
+    }
 
-% \cppfile{../results/cpp/test2/PosRpt.hpp}
-% \cppfile{../results/cpp/test2/PosRpt.cpp}
-% \cppfile{../results/cpp/test2/Util.hpp}
-% \cppfile{../results/cpp/test2/Util.cpp}
+    public PosRpt(int ReqTyp, String Ccy, int Rslt, int AcctTyp, int SetPxTyp, double PriSetPx, int RptID,
+                  double SetPx, Date BizDt, int Acct, Amt Amt_obj, Instrmt Instrmt_obj, Qty[] Qty_objs,
+                  Pty[] Pty_objs, Hdr Hdr_obj) {
+        this.ReqTyp = ReqTyp;
+        this.Ccy = Ccy;
+        this.Rslt = Rslt;
+        this.AcctTyp = AcctTyp;
+        this.SetPxTyp = SetPxTyp;
+        this.PriSetPx = PriSetPx;
+        this.RptID = RptID;
+        this.SetPx = SetPx;
+        this.BizDt = BizDt;
+        this.Acct = Acct;
+        this.Amt_obj = Amt_obj;
+        this.Instrmt_obj = Instrmt_obj;
+        this.Qty_objs = Qty_objs;
+        this.Pty_objs = Pty_objs;
+        this.Hdr_obj = Hdr_obj;
+    }
 
-% \newpage
-% \subsection{The Position Report as C Struct}
-% \label{sec:posrpt:c}
+    public int getReqTyp() {
+        return ReqTyp;
+    }
 
-% \cfile{../results/c/test2/PosRpt.h}
-% \cfile{../results/c/test2/PosRpt.c}
-% \cfile{../results/c/test2/Util.h}
-% \cfile{../results/c/test2/Util.c}
+    public void setReqTyp(int ReqTyp) {
+        this.ReqTyp = ReqTyp;
+    }
 
+    // Other getters/setters elided...
+}
+\end{javacode}
+
+\paragraph{Util.java}
+
+\begin{javacode}
+package test2;
+
+import java.text.SimpleDateFormat;
+import java.text.ParseException;
+import java.util.Date;
+
+class Util {
+    private static final SimpleDateFormat dateFormat
+        = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ssXXX");
+
+    public static Date parseDate(String date) {
+        try {
+            return dateFormat.parse(date);
+        } catch (ParseException e) {
+            throw new RuntimeException(e);
+        }
+    }
+}
+\end{javacode}
+
+
+\subsection{The Position Report as C\# Class}
+\label{sec:posrpt:csharp}
+
+\paragraph{PosRpt.cs}
+
+\begin{csharpcode}
+using System;
+
+namespace test2{
+  class PosRpt {
+    public int _ReqTyp { get; set; }
+    public string _Ccy { get; set; }
+    public int _Rslt { get; set; }
+    public int _AcctTyp { get; set; }
+    public int _SetPxTyp { get; set; }
+    public double _PriSetPx { get; set; }
+    public int _RptID { get; set; }
+    public double _SetPx { get; set; }
+    public DateTime _BizDt { get; set; }
+    public int _Acct { get; set; }
+    public Amt _Amt_obj { get; set; }
+    public Instrmt _Instrmt_obj { get; set; }
+    public Qty[] _Qty_objs { get; set; }
+    public Pty[] _Pty_objs { get; set; }
+    public Hdr _Hdr_obj { get; set; }
+
+    public PosRpt() {
+      this._ReqTyp = 0;
+      this._Ccy = "USD";
+      this._Rslt = 0;
+      this._AcctTyp = 1;
+      this._SetPxTyp = 1;
+      this._PriSetPx = 0.00;
+      this._RptID = 541386431;
+      this._SetPx = 0.00;
+      this._BizDt = Util.parseDate("2003-09-10T00:00:00");
+      this._Acct = 1;
+      this._Amt_obj = new Amt();
+      this._Instrmt_obj = new Instrmt();
+      this._Qty_objs = new Qty[] {new Qty(), new Qty(), new Qty()};
+      this._Pty_objs = new Pty[] {new Pty(), new Pty(), new Pty()};
+      this._Hdr_obj = new Hdr();
+    }
+
+    public PosRpt(int ReqTyp, string Ccy, int Rslt, int AcctTyp, int SetPxTyp, double PriSetPx, int RptID,
+                  double SetPx, DateTime BizDt, int Acct, Amt Amt_obj, Instrmt Instrmt_obj, Qty[] Qty_objs,
+                  Pty[] Pty_objs, Hdr Hdr_obj) {
+      this._ReqTyp = ReqTyp;
+      this._Ccy = Ccy;
+      this._Rslt = Rslt;
+      this._AcctTyp = AcctTyp;
+      this._SetPxTyp = SetPxTyp;
+      this._PriSetPx = PriSetPx;
+      this._RptID = RptID;
+      this._SetPx = SetPx;
+      this._BizDt = BizDt;
+      this._Acct = Acct;
+      this._Amt_obj = Amt_obj;
+      this._Instrmt_obj = Instrmt_obj;
+      this._Qty_objs = Qty_objs;
+      this._Pty_objs = Pty_objs;
+      this._Hdr_obj = Hdr_obj;
+    }
+  }
+}
+\end{csharpcode}
+
+\paragraph{Util.cs}
+
+\begin{csharpcode}
+using System;
+using System.Globalization;
+
+namespace test2 {
+  class Util {
+    public static DateTime parseDate(string date) {
+      return DateTime.Parse(date,  null, DateTimeStyles.RoundtripKind);
+    }
+  }
+}
+\end{csharpcode}
+
+
+\subsection{The Position Report as C++ Class}
+\label{sec:posrpt:cpp}
+
+\paragraph{PosRpt.hpp}
+
+\begin{cppcode}
+#ifndef _test2_PosRpt_H_
+#define _test2_PosRpt_H_
+
+#include "Amt.hpp"
+#include "Pty.hpp"
+#include "Instrmt.hpp"
+#include "Util.hpp"
+#include <string>
+#include "Qty.hpp"
+#include "Hdr.hpp"
+#include <ctime>
+
+namespace test2 {
+  class PosRpt {
+  private:
+    long _ReqTyp;
+    std::string _Ccy;
+    long _Rslt;
+    long _AcctTyp;
+    long _SetPxTyp;
+    double _PriSetPx;
+    long _RptID;
+    double _SetPx;
+    std::tm _BizDt;
+    long _Acct;
+    Amt* _Amt_obj;
+    Instrmt* _Instrmt_obj;
+    Qty** _Qty_objs;
+    Pty** _Pty_objs;
+    Hdr* _Hdr_obj;
+
+  public:
+    PosRpt();
+    PosRpt(long _ReqTyp, std::string _Ccy, long _Rslt, long _AcctTyp, long _SetPxTyp, double _PriSetPx, long _RptID,
+           double _SetPx, std::tm _BizDt, long _Acct, Amt* _Amt_obj, Instrmt* _Instrmt_obj, Qty** _Qty_objs,
+           Pty** _Pty_objs, Hdr* _Hdr_obj);
+    ~PosRpt();
+    long getReqTyp();
+    void setReqTyp(long ReqTyp);
+    std::string getCcy();
+    void setCcy(std::string Ccy);
+    long getRslt();
+    void setRslt(long Rslt);
+    long getAcctTyp();
+    void setAcctTyp(long AcctTyp);
+    long getSetPxTyp();
+    void setSetPxTyp(long SetPxTyp);
+    double getPriSetPx();
+    void setPriSetPx(double PriSetPx);
+    long getRptID();
+    void setRptID(long RptID);
+    double getSetPx();
+    void setSetPx(double SetPx);
+    std::tm getBizDt();
+    void setBizDt(std::tm BizDt);
+    long getAcct();
+    void setAcct(long Acct);
+    Amt* getAmt_obj();
+    void setAmt_obj(Amt* Amt_obj);
+    Instrmt* getInstrmt_obj();
+    void setInstrmt_obj(Instrmt* Instrmt_obj);
+    Qty** getQty_objs();
+    void setQty_objs(Qty** Qty_objs);
+    Pty** getPty_objs();
+    void setPty_objs(Pty** Pty_objs);
+    Hdr* getHdr_obj();
+    void setHdr_obj(Hdr* Hdr_obj);
+  };
+}
+
+#endif // _test2_PosRpt_H_
+\end{cppcode}
+
+\paragraph{PosRpt.cpp}
+
+\begin{cppcode}
+#include "PosRpt.hpp"
+
+namespace test2 {
+  PosRpt::PosRpt() {
+    this->_ReqTyp = 0;
+    this->_Ccy = "USD";
+    this->_Rslt = 0;
+    this->_AcctTyp = 1;
+    this->_SetPxTyp = 1;
+    this->_PriSetPx = 0.00;
+    this->_RptID = 541386431;
+    this->_SetPx = 0.00;
+    this->_BizDt = Util::parseDate("2003-09-10T00:00:00");
+    this->_Acct = 1;
+    this->_Amt_obj = new Amt();
+    this->_Instrmt_obj = new Instrmt();
+    this->_Qty_objs = new Qty*[3] {new Qty(), new Qty(), new Qty()};
+    this->_Pty_objs = new Pty*[3] {new Pty(), new Pty(), new Pty()};
+    this->_Hdr_obj = new Hdr();
+  }
+
+  PosRpt::PosRpt(long _ReqTyp, std::string _Ccy, long _Rslt, long _AcctTyp, long _SetPxTyp, double _PriSetPx,
+                 long _RptID, double _SetPx, std::tm _BizDt, long _Acct, Amt* _Amt_obj, Instrmt* _Instrmt_obj,
+                 Qty** _Qty_objs, Pty** _Pty_objs, Hdr* _Hdr_obj) {
+    this->_ReqTyp = _ReqTyp;
+    this->_Ccy = _Ccy;
+    this->_Rslt = _Rslt;
+    this->_AcctTyp = _AcctTyp;
+    this->_SetPxTyp = _SetPxTyp;
+    this->_PriSetPx = _PriSetPx;
+    this->_RptID = _RptID;
+    this->_SetPx = _SetPx;
+    this->_BizDt = _BizDt;
+    this->_Acct = _Acct;
+    this->_Amt_obj = _Amt_obj;
+    this->_Instrmt_obj = _Instrmt_obj;
+    this->_Qty_objs = _Qty_objs;
+    this->_Pty_objs = _Pty_objs;
+    this->_Hdr_obj = _Hdr_obj;
+  }
+
+  PosRpt::~PosRpt() {
+    delete _Amt_obj;
+    delete _Instrmt_obj;
+    delete[] _Qty_objs;
+    delete[] _Pty_objs;
+    delete _Hdr_obj;
+  }
+
+  long PosRpt::getReqTyp () {
+    return _ReqTyp;
+  }
+
+  void PosRpt::setReqTyp (long ReqTyp) {
+    _ReqTyp = ReqTyp;
+  }
+
+  // Other getters/setters elided...
+}
+\end{cppcode}
+
+\paragraph{Util.hpp}
+
+\begin{cppcode}
+#ifndef _test2_Util_H_
+#define _test2_Util_H_
+
+#include <string>
+#include <ctime>
+
+namespace test2 {
+  class Util {
+  public:
+    static std::tm parseDate(const char* date);
+  };
+}
+
+#endif // _test2_Util_H_
+\end{cppcode}
+
+\paragraph{Util.cpp}
+
+\begin{cppcode}
+#include "Util.hpp"
+
+namespace test2 {
+  std::tm Util::parseDate(const char* date) {
+    std::tm tmp;
+    strptime(date, "%FT%TZ", &tmp);
+    return tmp;
+  }
+}
+\end{cppcode}
+
+
+\subsection{The Position Report as C Struct}
+\label{sec:posrpt:c}
+
+\paragraph{PosRpt.h}
+
+\begin{ccode}
+#ifndef _PosRpt_H_
+#define _PosRpt_H_
+
+#include "Util.h"
+#include "Pty.h"
+#include <time.h>
+#include "Amt.h"
+#include "Instrmt.h"
+#include "Qty.h"
+#include "Hdr.h"
+
+typedef struct {
+  long ReqTyp;
+  char* Ccy;
+  long Rslt;
+  long AcctTyp;
+  long SetPxTyp;
+  double PriSetPx;
+  long RptID;
+  double SetPx;
+  struct tm BizDt;
+  long Acct;
+  Amt* Amt_obj;
+  Instrmt* Instrmt_obj;
+  Qty** Qty_objs;
+  Pty** Pty_objs;
+  Hdr* Hdr_obj;
+} PosRpt;
+
+PosRpt* make_default_PosRpt();
+
+PosRpt* make_PosRpt(long _ReqTyp, char* _Ccy, long _Rslt, long _AcctTyp, long _SetPxTyp, double _PriSetPx,
+                    long _RptID, double _SetPx, struct tm _BizDt, long _Acct, Amt* _Amt_obj,
+                    Instrmt* _Instrmt_obj, Qty** _Qty_objs, Pty** _Pty_objs, Hdr* _Hdr_obj);
+
+void free_PosRpt(PosRpt* x);
+
+#endif // _PosRpt_H_
+\end{ccode}
+
+\paragraph{PosRpt.c}
+
+\begin{ccode}
+#include "PosRpt.h"
+#include <stdlib.h>
+
+PosRpt* make_default_PosRpt() {
+  PosRpt* tmp = malloc(sizeof(PosRpt));
+  tmp->ReqTyp = 0;
+  tmp->Ccy = "USD";
+  tmp->Rslt = 0;
+  tmp->AcctTyp = 1;
+  tmp->SetPxTyp = 1;
+  tmp->PriSetPx = 0.00;
+  tmp->RptID = 541386431;
+  tmp->SetPx = 0.00;
+  tmp->BizDt = parseDate("2003-09-10T00:00:00");
+  tmp->Acct = 1;
+  tmp->Amt_obj = make_default_Amt();
+  tmp->Instrmt_obj = make_default_Instrmt();
+  tmp->Qty_objs = (Qty**) make_pointer_array(3, make_default_Qty(),
+                                                make_default_Qty(),
+                                                make_default_Qty());
+  tmp->Pty_objs = (Pty**) make_pointer_array(3, make_default_Pty(),
+                                                make_default_Pty(),
+                                                make_default_Pty());
+  tmp->Hdr_obj = make_default_Hdr();
+  return tmp;
+}
+
+PosRpt* make_PosRpt(long _ReqTyp, char* _Ccy, long _Rslt, long _AcctTyp, long _SetPxTyp, double _PriSetPx,
+                    long _RptID, double _SetPx, struct tm _BizDt, long _Acct, Amt* _Amt_obj,
+                    Instrmt* _Instrmt_obj, Qty** _Qty_objs, Pty** _Pty_objs, Hdr* _Hdr_obj) {
+  PosRpt* tmp = malloc(sizeof(PosRpt));
+  tmp->ReqTyp = _ReqTyp;
+  tmp->Ccy = _Ccy;
+  tmp->Rslt = _Rslt;
+  tmp->AcctTyp = _AcctTyp;
+  tmp->SetPxTyp = _SetPxTyp;
+  tmp->PriSetPx = _PriSetPx;
+  tmp->RptID = _RptID;
+  tmp->SetPx = _SetPx;
+  tmp->BizDt = _BizDt;
+  tmp->Acct = _Acct;
+  tmp->Amt_obj = _Amt_obj;
+  tmp->Instrmt_obj = _Instrmt_obj;
+  tmp->Qty_objs = _Qty_objs;
+  tmp->Pty_objs = _Pty_objs;
+  tmp->Hdr_obj = _Hdr_obj;
+  return tmp;
+}
+
+void free_PosRpt(PosRpt* sp) {
+  free_Amt(sp->Amt_obj);
+  free_Instrmt(sp->Instrmt_obj);
+
+  Qty* tmp_Qty_objs = *sp->Qty_objs;
+  while (tmp_Qty_objs != NULL) {
+    free_Qty(tmp_Qty_objs);
+    tmp_Qty_objs++;
+  }
+  free(sp->Qty_objs);
+
+  Pty* tmp_Pty_objs = *sp->Pty_objs;
+  while (tmp_Pty_objs != NULL) {
+    free_Pty(tmp_Pty_objs);
+    tmp_Pty_objs++;
+  }
+  free(sp->Pty_objs);
+  free_Hdr(sp->Hdr_obj);
+  free(sp);
+}
+\end{ccode}
+
+\paragraph{Util.h}
+
+\begin{ccode}
+#ifndef _Util_H_
+#define _Util_H_
+
+#include <time.h>
+
+void** make_pointer_array(int size, ...);
+struct tm parseDate(const char* date);
+
+#endif // _Util_H_
+\end{ccode}
+
+\paragraph{Util.c}
+
+\begin{ccode}
+#include "Util.h"
+#include <stdarg.h>
+#include <stdlib.h>
+
+void** make_pointer_array(int size, ...) {
+  va_list ap;
+  va_start(ap, size);
+  void** ary = malloc(sizeof(void*) * size + 1);
+  int i;
+  for (i = 0; i < size; i++) {
+    ary[i] = va_arg(ap, void*);
+  }
+  ary[i] = NULL;
+  va_end(ap);
+  return ary;
+}
+
+struct tm parseDate(const char* date) {
+  struct tm tmp;
+  strptime(date, "%FT%TZ", &tmp);
+  return tmp;
+}
+\end{ccode}
 
 \end{document}
 
