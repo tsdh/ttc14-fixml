@@ -21,6 +21,9 @@
 
 \usepackage[skip=0pt]{caption}
 
+\setlength{\abovecaptionskip}{0ex}
+\setlength{\belowcaptionskip}{-10pt}
+
 \title{Solving the TTC FIXML Case with FunnyQT}
 \author{Tassilo Horn
   \institute{Institute for Software Technology, University Koblenz-Landau, Germany}
@@ -192,10 +195,9 @@ called for all XML attributes, child elements, and character
 contents\footnote{The case description doesn't demand that XML character
   content should be handled.  However, without handling them transforming
   \texttt{test3.xml} and \texttt{test4.xml} would lead to several classes
-  without any fields.}  of element \code|e|, respectively.  These rules and the
-helpers \code|all-attributes|, \code|all-children|, and
-\code|all-character-contents| are skipped in for brevity, but they follow the
-same style and mechanics.
+  without any fields.}  of element \code|e|.  These rules and the helpers
+\code|all-attributes|, \code|all-children|, and \code|all-character-contents|
+are skipped for brevity but they follow the same style and mechanics.
 
 The next listing shows the helper implementing the extension task of
 heuristically determining an appropriate field type from XML attribute values.
@@ -208,13 +210,12 @@ heuristically determining an appropriate field type from XML attribute values.
                          #"[+-]?\d+"             (int-type %)
                          STRING) vals))]
      (get-or-create-builtin-type
-      (cond
-       (= (count ts) 1)              (first ts)
-       (= ts #{DOUBLE INTEGER})      DOUBLE
-       (= ts #{DOUBLE LONG})         DOUBLE
-       (= ts #{DOUBLE LONG INTEGER}) DOUBLE
-       (= ts #{INTEGER LONG})        LONG
-       :else                         STRING))))
+      (cond (= (count ts) 1)              (first ts)
+            (= ts #{DOUBLE INTEGER})      DOUBLE
+            (= ts #{DOUBLE LONG})         DOUBLE
+            (= ts #{DOUBLE LONG INTEGER}) DOUBLE
+            (= ts #{INTEGER LONG})        LONG
+            :else                         STRING))))
 \end{clojurecode*}
 
 The \code|guess-type| function receives a collection \code|vals|.  \code|vals|
@@ -222,9 +223,9 @@ could either be all character contents of an XML element, or all attribute
 values of an attribute that occurs in many XML elements of the same tag.  Every
 given value is checked against a regular expression that determines its type
 being either a timestamp in ISO 8601 notation, a double value, or an integer
-value.  If neither matches, then \code|STRING| is used as its type.  In case of
-an integer value, the function \code|int-type| further determines if the value
-can be represented as a 32 bit integer, or if a 64 bit long is needed.
+value.  If none match, then \code|STRING| is used as its type.  In case of an
+integer value, the function \code|int-type| further determines if the value can
+be represented as a 32 bit integer, or if a 64 bit long is needed.
 
 The \code|cond| expression picks the type that can be used to represent all
 values.  If all values are guessed to be of the very same type, then this type
@@ -265,9 +266,7 @@ using the template for Java.
 
 \begin{javacode*}{numbers=none}
 package {{{pkg-name}}};
-{{#imports}}
-import {{{imported-class}}};
-{{/imports}}
+{{#imports}}import {{{imported-class}}};{{/imports}}
 class {{{class-name}}} {
     {{#fields}}
     private {{{field-type}}} {{{field-name}}};
@@ -276,12 +275,11 @@ class {{{class-name}}} {
         {{#fields}}
         this.{{{field-name}}} = {{{field-value-exp}}};
         {{/fields}}
-    }
-    // parametrized constructor, getters, and setters elided...
-}
+    } /* parametrized constructor, getters, and setters elided... */ }
+
 \end{javacode*}
 
-So a map to feed to the Stencil templating engine needs to provide they keys
+So a map to feed to the Stencil templating engine needs to provide the keys
 \code|:pkg-name|, \code|:imports|, \code|:class-name|, etc.  The values for the
 \code|:imports| and \code|:fields| keys need to be collections of maps
 representing one import or field each, e.g., a field is represented as a map
@@ -331,26 +329,27 @@ here.
 \section{Evaluation and Conclusion}
 \label{sec:evaluation}
 
-The \emph{complexity} according to the evaluation criteria should be measured
-as the sum of number of operator occurrences and feature and entity type name
-references in the specification.  The FunnyQT solution contains about 300
-expressions, 24 metamodel type references, and 18 property references resulting
-in a complexity of 342.  So it is quite complex but it does much more than what
-was required.
+The \emph{complexity} should be measured as the sum of number of operator
+occurrences and feature and entity type name references.  The FunnyQT solution
+contains about 300 expressions, 24 metamodel type references, and 18 property
+references resulting in a complexity of 342.  So it is quite complex but it
+does much more than what was required.  A solution soving only the required
+tasks would have the same amount of metamodel type and property references but
+would be approximately one third shorter.
 
 \emph{Accuracy} should measure the degree of syntactical correctness of the
-generated code, and the degree of how well the generated code matches the
-source FIXML messages.  The FunnyQT solution has a very high accuracy.  The
-code is correct for all four languages and compiles without warnings.  It also
-matches the source FIXML messages very well.  Especially creating array fields
-for XML child elements that occur multiple times is much better than creating
-numbered fields.  Also, guessing appropriate types for the fields instead of
-always using string improves the usefulness of the generated code.  Finally,
-that the transformation can be run on an arbitrarily large sample of FIXML
-messages in one go improves the accuracy of the generated code even more.
+generated code and the degree of how well it matches the source FIXML messages.
+The FunnyQT solution has a very high accuracy.  The code is correct and
+compiles without warnings.  It also matches the source FIXML messages well.
+The creation of one array field for multiple XML children with the same tag is
+better than creating several separate fields.  Guessing appropriate types for
+the fields instead of always using string improves the usefulness of the
+generated code.  Also, that the transformation can be run on an arbitrarily
+large sample of FIXML messages in one go improves the accuracy even more.
 
 The overall \emph{development time} of the solution can be estimated with about
-12 person-hours.
+8 person-hours for the core task and 4 more hours to generalize and extend it
+to the final version.
 
 Since FunnyQT's generic \code|xml2xml-graph| transformation uses Java's StAX
 API internally, the \emph{fault tolerance} is high.  Documents which are not
